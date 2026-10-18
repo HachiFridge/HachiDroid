@@ -1,0 +1,26 @@
+[package]
+name = "senbei-jni"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+description = "JNI bridge exposing Senbei's static CrackProof restore to HachiDroid"
+# Senbei is AGPL-3.0-only; this crate is a derivative work of it. See README.md.
+license = "AGPL-3.0-only"
+
+[lib]
+name = "senbei_jni"
+crate-type = ["cdylib"]
+
+[dependencies]
+senbei-engine = { git = "https://github.com/Tenshou170/Senbei", rev = "d23cd5306f7a348c681a6f1b7a2dcebeb93f356d" }
+jni = "0.21"
+memmap2 = "0.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

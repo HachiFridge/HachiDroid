@@ -1,0 +1,75 @@
+# =========================================================================
+# 1. Gradle Build Outputs & Caches
+# =========================================================================
+.gradle/
+/build
+**/build/
+/.kotlin/
+
+# =========================================================================
+# 2. Android Studio & IDE Files
+# =========================================================================
+*.iml
+/.idea/
+!.idea/codeStyles/
+!.idea/copyright/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# =========================================================================
+# 3. Local Environment, Configuration & Secrets
+# =========================================================================
+local.properties
+/local.properties
+release.keystore
+*.jks
+*.pepk
+*.p12
+*.b64
+
+# =========================================================================
+# 4. OS & Miscellaneous Generated Files
+# =========================================================================
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.bak
+
+# =========================================================================
+# 5. AI Assistant & Agent Directories / Artifacts
+# =========================================================================
+.agent/
+.agents/
+.agent-cache/
+.agents-cache/
+.artifacts/
+*.artifact.md
+.gemini/
+.claude/
+.cursor/
+.cursorrules.local
+.windsurf/
+.clinerules/
+.roo/
+.aider/
+.aider*
+.copilot/
+.codeium/
+.supermaven/
+.continue/
+.freebuff/
+.freebuff
+
+# =========================================================================
+# 6. Generated App Assets & Extension Artifacts
+# =========================================================================
+/app/src/main/assets/extensions.dex
+
+# =========================================================================
+# 7. Rust (senbei-jni bridge) Build Outputs
+# =========================================================================
+# Cargo output stays under app/build (see build.gradle.kts), but a manual
+# `cargo build` in the crate would create a local target directory.
+/app/src/main/rust/senbei-jni/target/

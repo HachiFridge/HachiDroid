@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="TypographyEllipsis">
+    <string name="settings">설정</string>
+    <string name="about">정보</string>
+
+    <!-- Home -->
+    <string name="chip_state_ready">준비됨</string>
+    <string name="chip_state_unavailable">사용 불가</string>
+    <string name="chip_state_granted">허용됨</string>
+    <string name="chip_state_not_granted">거부됨</string>
+    <string name="game_not_installed">게임이 설치되어 있지 않음</string>
+    <string name="tap_to_select_app">여기를 눌러 다른 앱 선택</string>
+
+    <string name="patch">패치</string>
+    <plurals name="n_files_selected">
+        <item quantity="other">%d개 파일 선택됨</item>
+    </plurals>
+
+    <!-- Settings -->
+    <string name="follow_wallpaper_colors">배경화면 색상 적용</string>
+    <string name="follow_wallpaper_colors_desc">기본 HachiDroid 테마 대신 배경화면에서 추출한 Material You 색상을 사용합니다.</string>
+    <string name="settings_group_appearance">화면 표시</string>
+    <string name="settings_group_updates">업데이트 및 모드</string>
+    <string name="settings_group_patching">패치</string>
+    <string name="settings_group_signing">서명 키</string>
+    <string name="check_for_updates_desc">앱을 시작할 때 주기적으로 업데이트를 확인합니다.</string>
+    <string name="hachimi_repo">Hachimi 저장소 (Tracen)</string>
+    <string name="export_signing_key">서명 키 내보내기</string>
+    <string name="export_signing_key_desc">APK 파일 서명에 사용되는 BKS 키스토어를 내보냅니다.</string>
+    <string name="import_signing_key">서명 키 가져오기</string>
+    <string name="import_signing_key_desc">APK 파일 서명에 사용할 BKS 키스토어를 가져옵니다.</string>
+    <string name="no_keystore_to_export">내보낼 키스토어가 없습니다.</string>
+    <string name="keystore_imported">키스토어를 가져왔습니다.</string>
+    <string name="failed_to_import_keystore">키스토어를 가져오지 못했습니다.</string>
+    <string name="plugins_title">플러그인</string>
+    <string name="add_plugin">플러그인 추가</string>
+    <string name="remove_plugin">삭제</string>
+    <string name="no_plugins">추가된 플러그인이 없습니다.</string>
+    <string name="plugin_added">플러그인이 추가되었습니다.</string>
+    <string name="plugin_removed">플러그인이 삭제되었습니다.</string>
+    <string name="failed_to_add_plugin">플러그인을 추가하지 못했습니다.</string>
+    <string name="plugin_warning">경고: 플러그인이 게임 계정을 탈취하거나 악성 코드를 실행할 수 있습니다. 신뢰할 수 있는 소스에서만 설치하세요.</string>
+
+    <!-- About -->
+    <string name="app_desc">Android용 특정 모바일 게임을 위한 모드 패치 도구입니다.</string>
+    <string name="check_for_updates">업데이트 확인</string>
+    <string name="open_source_licenses">오픈소스 라이선스</string>
+    <string name="view_source_code">소스 코드 보기</string>
+
+    <!-- Patcher options -->
+    <string name="direct_install">직접 설치</string>
+    <string name="save_patched_file">패치된 파일 저장</string>
+    <string name="normal_install">일반 설치</string>
+    <string name="shizuku_install">Shizuku 설치</string>
+    <string name="install_state_available">(사용 가능)</string>
+    <string name="install_state_unavailable">(사용 불가)</string>
+    <string name="install_state_root_required">(루트 권한 필요)</string>
+    <string name="legacy_install">기존 방식 설치</string>
+    <string name="legacy_install_unknown_sources_required">출처를 알 수 없는 앱 설치 권한 필요</string>
+    <string name="legacy_install_unknown_sources_info">시스템 패키지 설치 프로그램을 실행하려면 Android에서 이 앱에 출처를 알 수 없는 앱 설치 권한을 부여해야 합니다. 확인을 눌러 설정 페이지로 이동한 뒤 HachiDroid에 권한을 허용하고 다시 돌아오세요.</string>
+    <string name="legacy_install_failed">시스템 패키지 설치 프로그램을 시작하지 못했습니다.</string>
+
+    <!-- Shizuku -->
+    <string name="shizuku_permission_required">Shizuku 권한 필요</string>
+    <string name="shizuku_unavailable">Shizuku를 사용할 수 없음</string>
+    <string name="shizuku_unavailable_info">Shizuku가 설치되어 있지 않거나 실행 중이지 않습니다. 이 설치 방식을 사용하려면 Shizuku를 설치하고 시작하세요. Shizuku 다운로드 페이지를 여시겠습니까?</string>
+
+    <!-- Patching -->
+    <string name="working">작업 중…</string>
+    <string name="completed">완료됨</string>
+    <string name="patch_success_msg">[패치 성공]</string>
+    <string name="patch_failed_msg">[패치 실패]</string>
+    <string name="uninstall_hachimi">Hachimi 제거</string>
+    <string name="uninstall_mod">모드 제거</string>
+    <string name="uninstall_confirm">설치된 게임에서 Hachimi를 제거하시겠습니까?\n\n게임의 원본 라이브러리가 복원되고 Hachimi 플러그인이 삭제됩니다. 세이브 데이터와 게임 본체는 유지됩니다.</string>
+    <string name="uninstall_success_msg">[Hachimi 제거됨]</string>
+    <string name="uninstall_failed_msg">[Hachimi 제거 실패]</string>
+    <string name="uninstall_unmounting">APK 마운트 해제 중</string>
+    <string name="uninstall_unmount_failed">APK 마운트를 해제하지 못했습니다. 게임을 다시 패치한 후 제거해 보세요.</string>
+    <string name="uninstall_restoring_lib">원본 라이브러리 복원 중</string>
+    <string name="uninstall_lib_restored">원본 라이브러리가 복원되었습니다</string>
+    <string name="uninstall_lib_not_patched">라이브러리가 패치되지 않았으므로 복원을 건너뜁니다</string>
+    <string name="uninstall_restore_failed">원본 라이브러리를 복원하지 못했습니다</string>
+    <string name="uninstall_removing_plugins">Hachimi 플러그인 제거 중</string>
+    <string name="uninstall_plugins_removed">Hachimi 플러그인이 제거되었습니다</string>
+    <string name="uninstall_marker_removed">내부 파일 디렉터리 표시 제거됨</string>
+    <string name="direct_install_unavailable">직접 설치는 게임이 설치되어 있을 때만 사용할 수 있습니다.</string>
+    <string name="root_required">이 작업에는 루트 권한이 필요합니다.</string>
+    <string name="failed_to_read_file">파일을 읽지 못했습니다: %s</string>
+    <string name="failed_to_move_file">파일을 이동하지 못했습니다: %s</string>
+    <string name="copying_file">파일 복사 중</string>
+    <string name="copying_file_name">파일 복사 중: %s</string>
+    <string name="patching">패치 중</string>
+    <string name="installing">설치 중</string>
+    <string name="install_completed">설치가 완료되었습니다.</string>
+    <string name="install_failed">설치에 실패했습니다.</string>
+    <string name="file_saved">파일이 저장되었습니다.</string>
+    <string name="failed_to_save_file">파일을 저장하지 못했습니다.</string>
+    <string name="extracting_file">파일 압축 해제 중: %s</string>
+    <string name="creating_file">파일 생성 중: %s</string>
+    <string name="cleaning_up">정리 중</string>
+
+    <!-- Merge split APKs -->
+    <string name="merge_apks">분할 APK를 단일 APK로 병합</string>
+    <string name="merge_apks_desc">\"패치된 파일 저장\"을 사용하고 분할 APK가 선택된 경우, XAPK로 패키징하는 대신 단일 독립 실행형 APK로 출력합니다.</string>
+    <string name="merging_apks">분할 APK 병합 중</string>
+    <string name="merge_no_base">선택한 분할 파일에서 기본(base) APK를 찾을 수 없습니다. 병합할 수 없습니다.</string>
+    <string name="merge_failed">분할 APK 병합 실패: %s</string>
+    <string name="merge_sanitizing_manifest">병합된 매니페스트 정리 중</string>
+    <string name="merge_writing_apk">병합된 APK 쓰는 중</string>
+
+    <!-- AppPatcher -->
+    <string name="syncing_app_libs">Hachimi 라이브러리 동기화 중</string>
+    <string name="using_local_library">로컬 라이브러리 사용하는 중…</string>
+    <string name="local_library_loaded">로컬 라이브러리를 성공적으로 불러왔습니다!</string>
+    <string name="error_local_library_no_file">오류: 로컬 라이브러리가 선택되었으나 파일이 지정되지 않았습니다.</string>
+    <string name="error_local_library_load_failed">로컬 라이브러리를 불러오지 못했습니다: %s</string>
+    <string name="downloading_file">파일 다운로드 중: %s</string>
+    <string name="failed_to_download_app_libs">Hachimi 라이브러리를 다운로드하지 못했습니다.</string>
+    <string name="failed_to_sync_app_libs">Hachimi 라이브러리 동기화 실패. 건너뜁니다.</string>
+    <string name="app_lib_updated">Hachimi가 업데이트되었습니다.</string>
+    <string name="using_app_lib_ver">Hachimi %s 사용 중</string>
+    <string name="corrupted_file_abort_download">손상된 파일이 감지되어 다운로드를 중단합니다.</string>
+    <string name="signing_apk_file">APK 파일 서명 중: %s</string>
+    <string name="apk_files_missing_lib">유효하지 않거나 불완전한 APK 파일(네이티브 라이브러리 누락)</string>
+    <string name="app_lib_dir_not_found">앱 라이브러리 디렉터리를 찾을 수 없습니다. 아무것도 설치되지 않았습니다.</string>
+    <string name="invalid_apk_file">유효하지 않은 APK 파일입니다.</string>
+    <string name="invalid_apk_file_name">유효하지 않은 APK 파일: %s</string>
+    <string name="detected_apk_split">감지된 APK 분할 유형: %s</string>
+    <string name="libraries_patched">패치된 라이브러리: %s</string>
+    <string name="plugins_patched">패치된 플러그인: %s</string>
+    <string name="failed_to_install_plugin">플러그인 설치 실패: %s</string>
+    <string name="invalid_apk_splits_duplicate">잘못된 분할 APK: 또 다른 %s APK가 발견되었습니다.</string>
+    <string name="apk_splits_missing_base">분할 APK에 기본(base) APK가 누락되었습니다.</string>
+    <string name="invalid_split_apk_multiple_type">잘못된 분할 APK입니다. 한 파일에서 여러 유형이 감지되었습니다.</string>
+    <string name="detected_xapk_file">XAPK 파일이 감지되었습니다.</string>
+    <string name="detected_apk_file">일반 APK 파일이 감지되었습니다.</string>
+    <string name="patching_as_split_apks">분할 APK로 패치하는 중입니다.</string>
+    <string name="staging_app">앱 스테이징 중</string>
+    <string name="removing_legacy_files">기존 파일 제거 중</string>
+    <string name="shizuku_moving_files">Shizuku용 파일 이동 중</string>
+    <string name="external_cache_unavailable">외부 캐시 폴더를 사용할 수 없습니다.</string>
+    <string name="copy_file_failed">%s(으)로 파일을 복사하지 못했습니다</string>
+    <string name="shizuku_files_move_failed">Shizuku용 파일 이동 실패: %s</string>
+    <string name="shizuku_starting_service">Shizuku 서비스 시작 중…</string>
+    <string name="shizuku_installing">Shizuku로 설치 중…</string>
+    <string name="shizuku_install_success">Shizuku 설치에 성공했습니다.</string>
+    <string name="shizuku_install_fail">Shizuku 설치 실패: %s</string>
+    <string name="shizuku_install_error">Shizuku 설치 중 오류 발생: %s</string>
+    <string name="shizuku_install_fail_unexpected">서비스 연결이 예기치 않게 끊어졌습니다.</string>
+
+    <!-- Other -->
+    <string name="cancel">취소</string>
+    <string name="ok">확인</string>
+    <string name="update_available">업데이트 사용 가능</string>
+    <string name="update_available_desc">새 버전을 사용할 수 있습니다: %1$s\n현재 버전: %2$s\n지금 다운로드하여 설치하시겠습니까?</string>
+    <string name="update_changelog_title">새로운 기능</string>
+    <string name="failed_to_check_for_updates">업데이트 확인 실패</string>
+    <string name="no_updates_available">최신 버전입니다</string>
+
+    <!-- Built-in app updater -->
+    <string name="update_download">다운로드</string>
+    <string name="update_downloading_title">업데이트 다운로드 중</string>
+    <string name="update_progress_mb">%1$.1f MB / %2$.1f MB</string>
+    <string name="update_downloading_unknown">다운로드 중…</string>
+    <string name="update_failed_title">업데이트 실패</string>
+    <string name="update_failed_generic">업데이트를 다운로드할 수 없습니다.</string>
+    <string name="update_download_failed">업데이트 다운로드 실패: %s</string>
+    <string name="update_no_apk">이 릴리스에서 다운로드 가능한 APK를 찾을 수 없습니다.</string>
+    <string name="update_verify_failed">다운로드한 업데이트의 무결성 검증에 실패하여 삭제되었습니다.</string>
+    <string name="update_file_missing">다운로드한 업데이트 파일을 찾을 수 없습니다. 다시 다운로드해 주세요.</string>
+    <string name="update_busy">앱을 업데이트하기 전에 진행 중인 패치를 중지하세요.</string>
+    <string name="update_retry">다시 시도</string>
+
+    <!-- Local Mod Source configuration -->
+    <string name="mod_source_github">GitHub 릴리스</string>
+    <string name="mod_source_local">로컬 파일 (.so)</string>
+    <string name="tap_to_select_mod_lib">여기를 눌러 로컬 .so 파일 선택</string>
+
+    <!-- Patching screen actions -->
+    <string name="patch_finished_in">%1$s초 만에 완료</string>
+    <string name="stop_patching_and_cleanup">패치 중지</string>
+    <string name="launch_game">게임 실행</string>
+    <string name="patching_cancelled_by_user">사용자가 패치를 취소했습니다</string>
+
+    <!-- Export internal data provider -->
+    <string name="export_internal_data_provider">내부 데이터 제공자 내보내기</string>
+    <string name="export_internal_data_provider_desc">패치된 APK에 문서 제공자(DocumentsProvider)를 추가하여 파일 관리자 및 다른 앱에서 내부 폴더(/data/data)에 접근할 수 있도록 허용합니다.</string>
+    <string name="patching_documents_provider">내부 데이터 문서 제공자 추가 중</string>
+    <string name="documents_provider_patched">내부 데이터 문서 제공자가 추가되었습니다.</string>
+    <string name="documents_provider_already_patched">내부 데이터 문서 제공자가 이미 존재합니다.</string>
+    <string name="documents_provider_patch_failed">내부 데이터 문서 제공자를 추가하지 못했습니다.</string>
+
+    <!-- Use internal files directory -->
+    <string name="use_internal_files_dir">내부 파일 디렉터리 사용</string>
+    <string name="use_internal_files_dir_desc">Hachimi-Edge가 이전 /Android/media 폴더 대신 게임의 내부 데이터 디렉터리(/data/data)를 사용하도록 하여 파일 읽기/쓰기 속도를 향상시킵니다.\n\n주의: 내부 폴더(/data/data)는 \"내부 데이터 제공자 내보내기\"가 활성화되어 있거나 루팅된 경우에만 파일 관리자에서 접근할 수 있습니다.\n\nAndroid 16 QPR2+ 또는 Android 17+에서 오류 2가 발생하는 경우에도 이 옵션이 필요합니다.</string>
+    <string name="internal_files_marker_added">내부 파일 디렉터리 표시가 추가되었습니다.</string>
+    <string name="internal_files_marker_failed">내부 파일 디렉터리 표시를 추가하지 못했습니다: %1$s</string>
+
+    <!-- Storage check -->
+    <string name="insufficient_storage">패치하기에 저장 공간이 부족합니다. 최소 %s의 여유 공간을 확보한 후 다시 시도하세요.</string>
+
+    <!-- UmaPatcher-Edge migration -->
+    <string name="migration_title">UmaPatcher-Edge에서 데이터 이전</string>
+    <string name="migration_desc">HachiDroid가 이 기기에서 기존 UmaPatcher-Edge 설치를 발견했습니다. 설정, 설치된 플러그인, Hachimi 라이브러리 및 서명 키를 가져올 수 있습니다.\n\n특히 서명 키가 가장 중요합니다. 서명 키가 없으면 UmaPatcher-Edge로 이미 패치된 게임 위에 향후 업데이트를 설치할 수 없습니다.</string>
+    <string name="migration_no_root_desc">HachiDroid가 기존 UmaPatcher-Edge 설치를 발견했으나, 자동 이전에는 루트 권한이 필요합니다.\n\n수동으로 이전할 수도 있습니다: UmaPatcher-Edge 설정에서 서명 키를 내보낸 후 HachiDroid 설정에서 가져오세요.</string>
+    <string name="migration_migrate">이전하기</string>
+    <string name="migration_not_now">나중에</string>
+    <string name="migration_running">이전 중…</string>
+    <string name="migration_done">UmaPatcher-Edge에서의 데이터 이전이 완료되었습니다.</string>
+    <string name="migration_nothing_to_migrate">UmaPatcher-Edge에서 이전할 항목을 찾을 수 없습니다.</string>
+    <string name="migration_failed">이전 실패: %s</string>
+
+    <!-- Deep link updater -->
+    <string name="deep_link_missing_apks">먼저 패치할 APK 파일을 선택하세요.</string>
+    <string name="selected_files_no_longer_available">선택한 파일 중 일부를 더 이상 사용할 수 없습니다. APK 파일을 다시 선택해 주세요.</string>
+
+    <!-- M3 Expressive Studio Redesign -->
+    <string name="target_client">대상 클라이언트</string>
+    <string name="client_jp">일본판 (JP)</string>
+    <string name="client_tw">번체 중국어판 (TW/HK)</string>
+    <string name="client_kr">한국판 (KR)</string>
+    <string name="client_glb">글로벌판 (EN)</string>
+    <string name="status_ready_patched">준비됨</string>
+    <string name="status_unpatched">원본</string>
+    <string name="status_patched">패치됨 (%1$s)</string>
+    <string name="switch_client">전환</string>
+    <string name="patch_studio">패치 스튜디오</string>
+    <string name="target_source_installed">설치된 게임</string>
+    <string name="target_source_files">APK 파일</string>
+    <string name="select_install_method">설치 방식</string>
+    <string name="select_install_method_desc">패치된 게임을 이 기기에 설치하는 방식을 선택하세요.</string>
+    <string name="method_direct_desc">Direct Root: 다시 설치하지 않고 패치된 라이브러리를 설치된 앱에 직접 마운트합니다.</string>
+    <string name="method_shizuku_desc">Shizuku: 승인된 ADB 서비스를 사용하여 루트 없이 분할 APK / XAPK를 설치합니다.</string>
+    <string name="method_normal_desc">패키지 설치 관리자: 세션 설치 프로그램을 통한 표준 시스템 설치입니다.</string>
+    <string name="method_save_desc">파일 내보내기: 패치된 APK 또는 XAPK를 저장소에 직접 저장합니다.</string>
+    <string name="method_legacy_desc">기존 설치 관리자: 대체 시스템 패키지 설치 관리자입니다.</string>
+    <string name="drop_files_title">APK 또는 XAPK 파일 선택</string>
+    <string name="drop_files_subtitle">분할 APK, XAPK 및 단일 APK 지원</string>
+    <string name="clear_files">지우기</string>
+    <string name="start_patching">패치 시작</string>
+    <string name="mod_engine_title">모드 소스</string>
+    <string name="tracen_mod_source_title">Hachimi 모드 소스</string>
+    <string name="tracen_mod_source_desc">HachiDroid가 Hachimi-Edge 네이티브 런타임 라이브러리를 가져올 위치를 선택하세요.</string>
+    <string name="plugins_active_badge">%d개 활성화됨</string>
+    <string name="capability_root">Root</string>
+    <string name="capability_shizuku">Shizuku</string>
+    <string name="capability_16kb">16KB 정렬</string>
+
+    <!-- App Management -->
+    <string name="game_management_title">게임 관리</string>
+    <string name="multi_client_desc">HachiDroid가 패치와 모드 주입을 적용할 %1$s 클라이언트를 선택하세요.</string>
+    <string name="active_target_badge">현재 대상</string>
+    <string name="set_as_active">대상으로 설정</string>
+    <string name="target_selected">선택된 클라이언트</string>
+    <string name="no_games_detected">%1$s 클라이언트를 찾지 못했습니다.</string>
+    <string name="no_games_detected_desc">패치를 시작하려면 지원되는 %1$s(%2$s) 버전을 설치하세요.</string>
+    <!-- Patching screen verdict, failure reason and log card -->
+    <string name="patch_failed_title">패치 실패</string>
+    <string name="uninstall_failed_title">제거 실패</string>
+    <string name="patch_cancelled_title">패치 취소됨</string>
+    <string name="patch_failed_after">%1$s초 후 실패</string>
+    <string name="patch_cancelled_after">%1$s초 후 취소됨</string>
+    <string name="patch_failed_step">중단된 단계: %1$s</string>
+    <string name="patch_failed_no_reason">패처가 이유를 보고하기 전에 중단되었습니다. 아래 로그를 펼쳐 실행 중이던 작업을 확인하세요.</string>
+    <string name="patch_no_input_files">APK 파일이 선택되지 않았습니다. 클라이언트의 APK 또는 XAPK 파일을 선택한 뒤 다시 시도하세요.</string>
+    <string name="patch_log_title">로그</string>
+    <string name="patch_log_copy">복사</string>
+    <string name="patch_log_copied">로그를 클립보드에 복사했습니다</string>
+    <string name="patch_view_log">로그 보기</string>
+    <string name="patch_log_share">공유</string>
+    <string name="patch_log_saved_to">%1$s에 저장됨</string>
+    <string name="back_to_previous">뒤로</string>
+    <!-- Pipeline stage labels shown in the patching timeline -->
+    <string name="stage_sync_mod_library">모드 라이브러리 동기화</string>
+    <string name="stage_copy_input">입력 복사</string>
+    <string name="stage_extract">추출</string>
+    <string name="stage_patch_libraries">라이브러리 패치</string>
+    <string name="stage_patch_extensions">확장 패치</string>
+    <string name="stage_index_apk_entries">APK 항목 색인</string>
+    <string name="stage_rebuild_apk">APK 재빌드</string>
+    <string name="stage_sign_apk">APK 서명</string>
+    <string name="stage_merge_apks">APK 병합</string>
+    <string name="stage_stage_for_shizuku">Shizuku용 준비</string>
+    <string name="stage_shizuku_install">Shizuku로 설치</string>
+    <string name="stage_package_install">패키지 설치</string>
+    <string name="stage_stage_apk">APK 세션 준비</string>
+    <string name="stage_legacy_install">레거시 설치</string>
+    <string name="stage_clear_legacy_mount">레거시 마운트 해제</string>
+    <string name="stage_install_mod_library">모드 라이브러리 설치</string>
+    <string name="stage_install_plugins">플러그인 설치</string>
+    <string name="stage_internal_files_marker">내부 파일 마커</string>
+    <string name="stage_patch_apk">APK 패치</string>
+    <string name="stage_patch_split_apks">분할 APK 패치</string>
+    <string name="stage_direct_install">직접 설치</string>
+    <string name="stage_cleanup">정리</string>
+    <string name="stage_total">합계</string>
+    <!-- About screen: hero, details, resources, project -->
+    <string name="about_version_chip">버전 %1$s · 빌드 %2$d</string>
+    <string name="about_section_details">세부 정보</string>
+    <string name="about_version_label">버전</string>
+    <string name="about_build_label">빌드</string>
+    <string name="about_package_label">패키지</string>
+    <string name="about_section_resources">리소스</string>
+    <string name="about_section_project">프로젝트</string>
+    <string name="about_check_updates_desc">GitHub에서 새 릴리스를 확인합니다</string>
+    <string name="about_licenses_desc">이 앱에 포함된 라이브러리</string>
+    <string name="about_issue">문제 신고</string>
+    <string name="about_issue_desc">GitHub에서 버그를 신고하고 기능을 제안하세요</string>
+    <string name="about_disclaimer">비공식 팬 도구입니다. Cygames와 관련이 없습니다.</string>
+
+    <string name="game_management_clients_title">설치된 클라이언트</string>
+    <string name="game_regions_tracen">일본판, 글로벌판, 번체 중국어판 또는 한국판</string>
+    <string name="game_regions_astraea">일본판</string>
+    <string name="mode_switch">모드 전환</string>
+    <string name="libraries_missing_lib">설치되지 않음</string>
+    <string name="astraea_libraries_incomplete">누락된 라이브러리: %s. 먼저 Patch Studio에서 추가하세요.</string>
+    <string name="libraries_tab_on_device">기기 내</string>
+    <string name="libraries_tab_import">가져오기</string>
+    <string name="libraries_import_action">라이브러리 추가</string>
+    <string name="libraries_import_hint">libil2cpp.so와 libnative.so를 한 번에 선택하거나, 두 파일이 포함된 zip 또는 APK를 선택하세요.</string>
+    <string name="libraries_import_done">2개 중 %1$d개 라이브러리를 가져왔습니다</string>
+    <string name="libraries_import_failed">선택한 항목에 사용 가능한 라이브러리가 없습니다</string>
+    <string name="libraries_unpack_action">선택한 분할 파일에서 풀기</string>
+    <string name="libraries_unpack_cached">라이브러리 풀림</string>
+    <string name="libraries_unpack_cached_hint">두 라이브러리 모두 이미 풀려 앱 저장소에 유지되므로 다시 진행할 필요가 없습니다.</string>
+    <string name="libraries_unpack_need_files">먼저 위에서 분할 APK를 선택하세요.</string>
+    <string name="libraries_unpack_hint">Senbei가 위에서 선택한 분할 APK에서 두 라이브러리를 풉니다.</string>
+    <string name="libraries_unpacking">푸는 중… 이 크기의 라이브러리는 몇 분 정도 걸립니다.</string>
+    <string name="libraries_unpack_done">2개 중 %1$d개 라이브러리를 풀었습니다</string>
+    <string name="libraries_unpack_failed">풀기 실패. 라이브러리는 변경되지 않았습니다.</string>
+    <string name="libraries_unpack_unavailable">이 기기에서는 기기 내 풀기 기능을 사용할 수 없습니다.</string>
+    <string name="libraries_unpack_no_space">저장 공간이 부족합니다. 풀기에는 약 700MB가 필요합니다.</string>
+    <string name="libraries_unpack_no_libs">해당 아카이브에 libil2cpp.so 또는 libnative.so가 없습니다.</string>
+    <string name="astraea_patch_is_one_way">패치는 단방향 작업입니다. 패치된 설치본은 순정으로 되돌릴 수 없습니다. 순정으로 다시 플레이하려면 게임을 삭제한 뒤 Play 스토어에서 다시 설치하세요.</string>
+    <string name="astraea_no_direct_install">Astraea 모드는 설치된 게임에 직접 패치할 수 없습니다. CrackProof 셸을 다시 빌드하여 제거해야 하므로 분할 APK 또는 XAPK를 패치하세요.</string>
+    <string name="astraea_install_replaces_store_copy">패치된 빌드는 사용자의 키로 서명되므로 설치 프로그램이 스토어 버전을 업데이트할 수 없습니다. 설치되어 있다면 먼저 게임을 삭제하세요(계정 데이터는 서버에 보관됩니다).</string>
+    <string name="astraea_drop_files_subtitle">게임의 분할 APK(base + config.arm64-v8a) 또는 XAPK를 선택하세요.</string>
+    <string name="daringtact_repo">DaringTact 저장소 (Astraea)</string>
+    <string name="astraea_mod_source_desc">HachiDroid가 DaringTact 모드 라이브러리를 가져올 위치를 선택하세요.</string>
+    <string name="mod_library_download">모드 라이브러리 다운로드</string>
+    <string name="mod_library_redownload">모드 라이브러리 다시 다운로드</string>
+    <string name="mod_library_ready">%1$s 준비 완료</string>
+    <string name="mod_library_missing">아직 다운로드되지 않음</string>
+    <string name="mod_library_done">모드 라이브러리 준비 완료 (%1$s)</string>
+    <string name="mod_library_failed">모드 라이브러리를 업데이트할 수 없습니다: %1$s</string>
+    <string name="mod_badge_online">온라인</string>
+    <string name="mod_badge_local">로컬</string>
+    <string name="tracen_mod_loaded">Hachimi 로드됨 (%1$s)</string>
+    <string name="lib_guard_too_small">이 파일은 올바른 ELF 라이브러리로 보기에는 너무 작습니다.</string>
+    <string name="lib_guard_not_elf">이 파일은 ELF 바이너리가 아닙니다. ELF 헤더가 없습니다.</string>
+    <string name="lib_guard_not_64_bit">이 라이브러리는 64비트가 아닙니다. Tracen에는 arm64-v8a 빌드가 필요합니다.</string>
+    <string name="lib_guard_big_endian">이 라이브러리는 빅 엔디언입니다. Tracen에는 리틀 엔디언 빌드가 필요합니다.</string>
+    <string name="lib_guard_wrong_machine">이 라이브러리는 Tracen에 필요한 ARM64(aarch64)용으로 빌드되지 않았습니다.</string>
+    <string name="lib_guard_stock_library">안전 검사 위반: %1$s은(는) 게임이나 엔진 내부 라이브러리라서 Hachimi 본체로 사용할 수 없습니다.</string>
+    <string name="lib_guard_no_signature">이 라이브러리에는 HACHIMI_VERSION 서명이 없습니다. 게임 확장이나 플러그인이라면 모드 소스가 아니라 플러그인으로 추가하세요.</string>
+    <string name="lib_guard_inspect_failed">라이브러리를 검사할 수 없습니다: %1$s</string>
+    <string name="lib_guard_file_missing">해당 파일이 더 이상 존재하지 않습니다: %1$s</string>
+    <string name="lib_guard_unreadable">%1$s을(를) 열 수 없습니다.</string>
+    <string name="lib_guard_read_failed">%1$s을(를) 열 수 없습니다: %2$s</string>
+    <string name="plugin_guard_not_elf">이 파일은 ELF 공유 라이브러리(.so)가 아닙니다.</string>
+    <string name="plugin_guard_not_64_bit">플러그인은 64비트(arm64-v8a)여야 합니다. 32비트 플러그인은 지원하지 않습니다.</string>
+    <string name="plugin_guard_wrong_machine">이 플러그인은 ARM64(aarch64)용으로 컴파일되지 않았습니다.</string>
+    <string name="plugin_guard_reserved_name">%1$s은(는) Hachimi 본체 이름이며 플러그인 이름이 아닙니다.</string>
+    <string name="plugin_guard_stock_name">%1$s은(는) 게임 핵심 라이브러리 이름이라서 플러그인으로 추가할 수 없습니다.</string>
+    <string name="plugin_guard_is_engine">이것은 플러그인이 아니라 Hachimi-Edge 본체(%1$s)입니다. 모드 라이브러리로 설정하세요.</string>
+    <string name="plugin_guard_failed">플러그인을 검증할 수 없습니다: %1$s</string>
+    <string name="astraea_mod_source_title">DaringTact 모드 소스</string>
+    <string name="mod_no_file">선택된 파일 없음</string>
+    <string name="libraries_title">라이브러리</string>
+    <string name="libraries_ready_count">%2$d개 중 %1$d개 준비됨</string>
+    <string name="libraries_remove">%1$s 삭제</string>
+    <string name="libraries_removed">%1$s 삭제됨</string>
+    <string name="libraries_remove_failed">%1$s 삭제 실패</string>
+    <string name="astraea_mod_local_none">아직 선택된 로컬 라이브러리가 없습니다.</string>
+    <string name="astraea_mod_saved_to">%s에 저장됨</string>
+    <string name="astraea_mod_installed">libdaringtact.so 설치됨 (%s)</string>
+    <string name="astraea_mod_repo_missing">먼저 설정에서 DaringTact 저장소를 지정하세요.</string>
+    <string name="astraea_mod_asset_missing">최신 릴리스에 libdaringtact.so가 없습니다.</string>
+    <string name="astraea_mod_not_elf">해당 파일은 네이티브 라이브러리가 아닙니다.</string>
+    <string name="astraea_mod_failed">libdaringtact.so를 가져올 수 없습니다: %s</string>
+    <string name="hachimi_mod_repo_missing">먼저 설정에서 Hachimi 저장소를 지정하세요.</string>
+    <string name="hachimi_mod_asset_missing">최신 릴리스에 Hachimi 모드 라이브러리가 없습니다.</string>
+    <string name="hachimi_mod_checksum_missing">릴리스에 체크섬 파일이 없습니다.</string>
+    <string name="hachimi_mod_checksum_mismatch">다운로드한 모드 라이브러리의 체크섬이 일치하지 않습니다.</string>
+    <string name="direct_root_injection">Direct Root 주입</string>
+    <string name="direct_root_injection_desc">외부 APK 파일 없이 설치된 게임에 직접 패치를 적용합니다.</string>
+    <string name="astraea_assets_missing">번들된 Application 클래스가 이 빌드에 없습니다. HachiDroid를 다시 설치하세요.</string>
+    <string name="stage_patch_manifest">매니페스트 패치</string>
+</resources>

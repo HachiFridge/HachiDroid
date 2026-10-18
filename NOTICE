@@ -1,0 +1,35 @@
+HachiDroid
+Copyright (C) 2026 Tenshou170
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+========================================================================
+
+Portions of this software are based on and incorporate code from:
+
+- LeadRDRK/UmaPatcher
+  Copyright (C) 2023-2025 LeadRDRK and contributors
+  Licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+- kairusds/UmaPatcher-Edge
+  Copyright (C) 2025-2026 kairusds and contributors
+  Licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+========================================================================
+
+The optional on-device library restore in Astraea mode links and packages:
+
+- Tenshou170/Senbei (https://github.com/Tenshou170/Senbei)
+  Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only)
+
+  Senbei is compiled by app/src/main/rust/senbei-jni and packaged as
+  lib/arm64-v8a/libsenbei_jni.so. A build that includes that library therefore
+  carries AGPL-3.0 obligations for that component in addition to the GPL-3.0
+  terms above; builds made without the Rust toolchain omit it entirely.
+
+  Senbei only processes libraries a user extracts from a copy of the game on
+  their own device. This project does not redistribute any part of the game's
+  binaries; restored libraries must not be shared.

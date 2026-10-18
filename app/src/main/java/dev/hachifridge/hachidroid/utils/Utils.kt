@@ -1,0 +1,114 @@
+package dev.hachifridge.hachidroid.utils
+
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import com.google.gson.Gson
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+
+fun safeNavigate(lifecycleOwner: LifecycleOwner, callback: () -> Unit) {
+    val currentState = lifecycleOwner.lifecycle.currentState
+    if (currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+        callback()
+    }
+}
+
+fun deleteRecursive(fileOrDirectory: File, deleteRoot: Boolean = true) {
+    if (fileOrDirectory.isDirectory)
+        // listFiles() is null when the directory cannot be read; there is nothing to delete then.
+        for (child in fileOrDirectory.listFiles().orEmpty())
+            deleteRecursive(child)
+
+    if (deleteRoot) fileOrDirectory.delete()
+}
+
+fun downloadFileAndDigestSHA256(url: URL, outputFile: File, onProgress: (Float) -> Unit): ByteArray {
+    val conn = url.openConnection() as HttpURLConnection
+    conn.doInput = true
+    conn.instanceFollowRedirects = true
+    // Fail fast on dead connections; the read timeout resets while data flows, so slow downloads still work.
+    conn.connectTimeout = 15000
+    conn.readTimeout = 30000
+    conn.connect()
+
+    if (conn.responseCode != 200) throw IOException()
+    val contentLength = conn.contentLengthLong
+
+    val shaDigest = MessageDigest.getInstance("SHA-256") 
+
+    conn.inputStream.use { input ->
+        outputFile.outputStream().use { output ->
+            // 64 KiB reads: a 200 MB APK is ~200k syscalls at 1 KiB versus ~3k here.
+            val dataBuffer = ByteArray(64 * 1024)
+            var totalBytesRead = 0L
+            var bytesRead: Int
+            while (input.read(dataBuffer).also { bytesRead = it } != -1) {
+                output.write(dataBuffer, 0, bytesRead)
+                shaDigest.update(dataBuffer, 0, bytesRead)
+
+                totalBytesRead += bytesRead
+                if (contentLength != -1L) {
+                    onProgress(totalBytesRead.toFloat() / contentLength)
+                }
+            }
+        }
+    }
+
+    return shaDigest.digest() 
+}
+
+private val gson = Gson()
+fun fetchJson(url: URL, accept: String = "application/json"): HashMap<*, *> {
+    val conn = url.openConnection() as HttpURLConnection
+    conn.setRequestProperty("Accept", accept)
+    conn.doInput = true
+    conn.instanceFollowRedirects = true
+    // Without timeouts a half-open connection hangs the run with no way to fail out.
+    conn.connectTimeout = 15000
+    conn.readTimeout = 30000
+    conn.connect()
+
+    if (conn.responseCode != 200) throw IOException()
+
+    val body = conn.inputStream.use { input ->
+        val result = ByteArrayOutputStream()
+        val buffer = ByteArray(1024)
+
+        var length: Int
+        while (input.read(buffer).also { length = it } != -1) {
+            result.write(buffer, 0, length)
+        }
+        result.toString("UTF-8")
+    }
+
+    return gson.fromJson(body, HashMap::class.java)
+}
+
+private val HEX_ARRAY = "0123456789abcdef".toCharArray()
+fun bytesToHex(bytes: ByteArray): String {
+    val hexChars = CharArray(bytes.size * 2)
+    for (j in bytes.indices) {
+        val v = bytes[j].toInt() and 0xFF
+        hexChars[j * 2] = HEX_ARRAY[v ushr 4]
+        hexChars[j * 2 + 1] = HEX_ARRAY[v and 0x0F]
+    }
+    return String(hexChars)
+}
+
+fun InputStream.copyTo(out: OutputStream, onProgress: (currentBytes: Int) -> Unit) {
+    val buffer = ByteArray(524288) // 512KiB
+    var lengthRead: Int
+    var currentBytes = 0
+    while (read(buffer).also { lengthRead = it } > 0) {
+        out.write(buffer, 0, lengthRead)
+        currentBytes += lengthRead
+        onProgress(currentBytes)
+    }
+    out.flush()
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch window background: matches the Compose brand background so the
+         cold-start window never flashes stock white. Night variant in values-night. -->
+    <color name="window_background">#FFFFF9F1</color>
+</resources>

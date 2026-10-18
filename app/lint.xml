@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- bcpkix-jdk18on ships a no-op X509TrustManager so the provider can be
+         registered on every JVM; the app never uses BouncyCastle for TLS.
+         All HTTPS in HachiDroid goes through the platform's HttpURLConnection,
+         so this class is never in a trust path. Suppressing the external-jar
+         finding here is safer than removing the dependency, which ApkSigner
+         needs for X.509/BKS key generation. -->
+    <issue id="TrustAllX509TrustManager" severity="ignore" />
+</lint>

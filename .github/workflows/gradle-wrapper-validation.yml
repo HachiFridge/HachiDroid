@@ -1,0 +1,11 @@
+name: Validate Gradle Wrapper
+on: [push, pull_request]
+
+jobs:
+  validation:
+    name: Validation
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v7 and gradle/actions v6 both run on the Node 24 Actions runtime.
+      - uses: actions/checkout@v7
+      - uses: gradle/actions/wrapper-validation@v6

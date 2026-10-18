@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive-icon foreground layer: the raw glyph (ic_launcher_foreground, also used
+  as the in-app logo) inset into the adaptive icon safe zone.
+
+  The adaptive-icon canvas is 108dp and the launcher mask reveals at most a 72dp
+  shape, so a centred 66dp circle is the guaranteed safe zone. Insetting by 18dp
+  leaves a 72dp content box, placing the glyph's farthest point at ~32dp from the
+  centre — it survives circular masks without clipping. Keep the inset value in
+  sync with FG_SCALE/INSET_DP in scripts/generate_launcher_icons.py (the
+  monochrome silhouette is baked with the same scale).
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_launcher_foreground"
+    android:insetBottom="18dp"
+    android:insetLeft="18dp"
+    android:insetRight="18dp"
+    android:insetTop="18dp" />
