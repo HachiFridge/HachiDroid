@@ -90,7 +90,6 @@ import dev.hachifridge.hachidroid.ui.navigation.Navigator
 import dev.hachifridge.hachidroid.ui.patcher.PatcherLauncher
 import dev.hachifridge.hachidroid.utils.safeNavigate
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -379,30 +378,22 @@ fun PatchingScreen(
                             coroutineScope.launch(Dispatchers.IO) {
                                 val pm = context.packageManager
                                 GameChecker.init(pm)
-                                var targetPackage = GameChecker.currentPackageName
-                                    ?: "jp.co.cygames.umamusume"
-
-                                var intent = pm.getLaunchIntentForPackage(targetPackage)?.apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                }
-                                var retries = 3
-                                while (intent == null && retries-- > 0) {
-                                    delay(500)
-                                    GameChecker.init(pm)
-                                    targetPackage = GameChecker.currentPackageName ?: targetPackage
-                                    intent = pm.getLaunchIntentForPackage(targetPackage)?.apply {
+                                // Visibility is static, so a null intent means the game really is
+                                // absent; re-resolving the package cannot change that.
+                                val intent = GameChecker.currentPackageName
+                                    ?.let { pm.getLaunchIntentForPackage(it) }
+                                    ?.apply {
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                                     }
-                                }
 
                                 withContext(Dispatchers.Main) {
                                     if (intent != null) {
                                         context.startActivity(intent)
                                     } else {
-                                        android.widget.Toast.makeText(
+                                        Toast.makeText(
                                             context,
                                             R.string.game_not_installed,
-                                            android.widget.Toast.LENGTH_SHORT
+                                            Toast.LENGTH_SHORT
                                         ).show()
                                     }
                                 }
