@@ -121,6 +121,23 @@ class PatchingViewModel : ViewModel() {
         runLog?.append(line)
     }
 
+    /** Empties everything the previous run left on screen; only a fresh run may call this. */
+    private fun clearRunState(workingStr: String) {
+        log.clear()
+        stages.clear()
+        stagePositions.clear()
+        runLog = null
+        logFile = null
+        completed = false
+        isSuccess = false
+        isCancelled = false
+        progress = -1f
+        failureReason = null
+        failedTask = null
+        lastReportedTask = null
+        currentTask = workingStr
+    }
+
     init {
         viewModelScope.launch(Dispatchers.Main) {
             logChannel.receiveAsFlow().collect { line ->
@@ -139,20 +156,30 @@ class PatchingViewModel : ViewModel() {
         patchCancelledMsg: String,
         failureTitle: String
     ) {
-        if (completed || PatcherLauncher.patching) return
+        val patcher = PatcherLauncher.patcher ?: return
+
+        // This ViewModel is activity-scoped, so every visit to the screen reuses the instance and
+        // the previous run's state is still here. A different patcher means a new run: drop what
+        // the last one left behind, or the screen keeps showing the other game's log and verdict
+        // while the run that is waiting for its callbacks never starts.
+        val newRun = patcher !== activePatcher
+        if (!newRun && (completed || PatcherLauncher.patching)) return
 
         this.failureTitle = failureTitle
         successMessage = patchSuccessMsg
         failureReason = null
         failedTask = null
         lastReportedTask = null
-        
-        val workingStr = context.getString(R.string.working)
-        if (currentTask.isEmpty()) currentTask = workingStr
 
-        val patcher = PatcherLauncher.patcher ?: return
+        val workingStr = context.getString(R.string.working)
+        if (newRun) {
+            clearRunState(workingStr)
+        } else if (currentTask.isEmpty()) {
+            currentTask = workingStr
+        }
+
         activePatcher = patcher
-        
+
         patcher.setCallbacks(
             onLog = { line -> emit(line) },
             onStage = { label, detail, seconds -> recordStage(label, detail, seconds) },
