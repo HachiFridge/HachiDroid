@@ -10,6 +10,9 @@
         <package android:name="com.komoe.kmumamusumegp" />
         <package android:name="com.komoe.umamusumeofficial" />
         <package android:name="com.kakaogames.umamusume" />
+        <!-- Astraea mode (JP). Package visibility is static: an id missing here is invisible to
+             PackageManager, so an installed game would read as not installed. -->
+        <package android:name="jp.co.cygames.princessconnectredive" />
         <!-- UmaPatcher-Edge sources detected by the migration dialog -->
         <package android:name="dev.LeadRDRK.UmaPatcherEdge" />
         <package android:name="com.leadrdrk.umapatcher.edge" />
