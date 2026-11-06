@@ -48,11 +48,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.map
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import dev.hachifridge.hachidroid.core.PatchMode
 import dev.hachifridge.hachidroid.core.PrefKey
@@ -182,6 +184,13 @@ private fun MainContent(viewModel: MainViewModel = viewModel()) {
     if (viewModel.rootInitialized.value) {
         NavDisplay(
             backStack = backStack,
+            // Every entry owns its ViewModelStore, cleared when the entry is popped, so screen
+            // state cannot leak from one visit or patch run into the next. The saveable-state
+            // holder is Nav3's default decorator and has to stay first.
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator()
+            ),
             onBack = { navigator.popBackStack() },
             transitionSpec = {
                 ContentTransform(
