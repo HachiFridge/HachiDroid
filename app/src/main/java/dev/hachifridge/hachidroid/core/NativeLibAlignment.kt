@@ -1,6 +1,9 @@
 package dev.hachifridge.hachidroid.core
 
+import android.system.Os
+import android.system.OsConstants
 import java.io.File
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -16,6 +19,20 @@ object NativeLibAlignment {
 
     /** Android 15's 16 KB page size; every loadable segment must be aligned to at least this. */
     const val PAGE_SIZE_16_KB = 16_384L
+
+    /** 64 KB is sufficient to cover ELF and program header tables in virtually all shared libraries. */
+    const val HEADER_PROBE_BYTES = 64 * 1024
+
+    /** Physical memory page size on this device (4096 or 16384). */
+    val devicePageSize: Long by lazy {
+        runCatching {
+            Os.sysconf(OsConstants._SC_PAGESIZE)
+        }.getOrDefault(4096L)
+    }
+
+    /** True when this device's kernel uses 16 KB memory pages. */
+    val isDevice16KbPage: Boolean
+        get() = devicePageSize >= PAGE_SIZE_16_KB
 
     private const val ELF_CLASS_32 = 1
     private const val ELF_CLASS_64 = 2
@@ -41,7 +58,39 @@ object NativeLibAlignment {
 
     /** Returns null when [file] is missing, unreadable, or not a well-formed ELF. */
     fun inspect(file: File): Result? =
-        runCatching { file.readBytes() }.getOrNull()?.let { inspect(it) }
+        runCatching {
+            val probe = ByteArray(HEADER_PROBE_BYTES)
+            file.inputStream().use { stream ->
+                var totalRead = 0
+                while (totalRead < probe.size) {
+                    val read = stream.read(probe, totalRead, probe.size - totalRead)
+                    if (read == -1) break
+                    totalRead += read
+                }
+                if (totalRead < HEADER_SIZE_32) return null
+                val probeBytes = if (totalRead == probe.size) probe else probe.copyOf(totalRead)
+                inspect(probeBytes) ?: run {
+                    // Fallback for uncommon ELFs with program header tables placed beyond the first 64 KB
+                    if (file.length() <= 10L * 1024 * 1024) {
+                        inspect(file.readBytes())
+                    } else null
+                }
+            }
+        }.getOrNull()
+
+    /** Inspects the program headers from the beginning of an [InputStream]. */
+    fun inspect(stream: InputStream): Result? =
+        runCatching {
+            val probe = ByteArray(HEADER_PROBE_BYTES)
+            var totalRead = 0
+            while (totalRead < probe.size) {
+                val read = stream.read(probe, totalRead, probe.size - totalRead)
+                if (read == -1) break
+                totalRead += read
+            }
+            if (totalRead < HEADER_SIZE_32) return null
+            inspect(if (totalRead == probe.size) probe else probe.copyOf(totalRead))
+        }.getOrNull()
 
     fun inspect(bytes: ByteArray): Result? {
         if (bytes.size < HEADER_SIZE_32) return null

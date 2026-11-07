@@ -92,19 +92,8 @@ object AstraeaLibraries {
         )
     }
 
-    private fun alignmentOf(file: File): Boolean? = runCatching {
-        file.inputStream().use { stream ->
-            val probe = ByteArray(HEADER_PROBE_BYTES)
-            var read = 0
-            while (read < probe.size) {
-                val count = stream.read(probe, read, probe.size - read)
-                if (count <= 0) break
-                read += count
-            }
-            NativeLibAlignment.inspect(if (read == probe.size) probe else probe.copyOf(read))
-                ?.is16KbCompatible
-        }
-    }.getOrNull()
+    private fun alignmentOf(file: File): Boolean? =
+        NativeLibAlignment.inspect(file)?.is16KbCompatible
 
     /**
      * What one import pass produced. [skipped] keeps the picked names that carried nothing we

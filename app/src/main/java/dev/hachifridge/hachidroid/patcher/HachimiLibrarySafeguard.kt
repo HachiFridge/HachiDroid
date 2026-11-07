@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.StringRes
 import dev.hachifridge.hachidroid.R
+import dev.hachifridge.hachidroid.core.NativeLibAlignment
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.InputStream
@@ -20,7 +21,10 @@ import java.io.InputStream
 object HachimiLibrarySafeguard {
 
     sealed class ValidationResult {
-        data class Valid(val version: String) : ValidationResult()
+        data class Valid(
+            val version: String,
+            val is16KbCompatible: Boolean? = null
+        ) : ValidationResult()
 
         data class Error(
             @StringRes val messageRes: Int,
@@ -55,37 +59,52 @@ object HachimiLibrarySafeguard {
     fun validateModLibrary(inputStream: InputStream, candidateName: String = ""): ValidationResult {
         return try {
             BufferedInputStream(inputStream).use { stream ->
-                // 1. Read ELF Header (64 bytes for ELF64)
-                val header = ByteArray(64)
-                val bytesRead = stream.read(header)
+                stream.mark(NativeLibAlignment.HEADER_PROBE_BYTES)
+                val probe = ByteArray(NativeLibAlignment.HEADER_PROBE_BYTES)
+                var bytesRead = 0
+                while (bytesRead < probe.size) {
+                    val read = stream.read(probe, bytesRead, probe.size - bytesRead)
+                    if (read == -1) break
+                    bytesRead += read
+                }
                 if (bytesRead < 64) {
                     return ValidationResult.Error(R.string.lib_guard_too_small)
                 }
 
                 // 2. Validate ELF Magic
                 for (i in 0 until 4) {
-                    if (header[i] != ELF_MAGIC[i]) {
+                    if (probe[i] != ELF_MAGIC[i]) {
                         return ValidationResult.Error(R.string.lib_guard_not_elf)
                     }
                 }
 
                 // 3. Validate ELF Class (must be 64-bit)
-                if (header[4] != ELF_CLASS_64) {
+                if (probe[4] != ELF_CLASS_64) {
                     return ValidationResult.Error(R.string.lib_guard_not_64_bit)
                 }
 
                 // 4. Validate Byte Ordering (Little Endian)
-                if (header[5] != ELF_DATA_LSB) {
+                if (probe[5] != ELF_DATA_LSB) {
                     return ValidationResult.Error(R.string.lib_guard_big_endian)
                 }
 
                 // 5. Validate Machine (e_machine at offset 18, 2 bytes little-endian)
-                val machine = (header[18].toInt() and 0xFF) or ((header[19].toInt() and 0xFF) shl 8)
+                val machine = (probe[18].toInt() and 0xFF) or ((probe[19].toInt() and 0xFF) shl 8)
                 if (machine != EM_AARCH64) {
                     return ValidationResult.Error(R.string.lib_guard_wrong_machine)
                 }
 
-                // 6. Check for disallowed stock game libraries
+                // 6. Validate 16 KB page alignment for devices using 16 KB pages
+                val probeBytes = if (bytesRead == probe.size) probe else probe.copyOf(bytesRead)
+                val alignment = NativeLibAlignment.inspect(probeBytes)
+                if (NativeLibAlignment.isDevice16KbPage && alignment != null && !alignment.is16KbCompatible) {
+                    return ValidationResult.Error(
+                        R.string.lib_guard_not_16kb_aligned,
+                        listOf(alignment.maxLoadAlignment)
+                    )
+                }
+
+                // 7. Check for disallowed stock game libraries
                 val lowerName = candidateName.lowercase()
                 if (REJECTED_CORE_LIB_NAMES.any { lowerName.endsWith(it) }) {
                     return ValidationResult.Error(
@@ -95,10 +114,14 @@ object HachimiLibrarySafeguard {
                     )
                 }
 
-                // 7. Check for HACHIMI_VERSION signature
+                // 8. Check for HACHIMI_VERSION signature
+                stream.reset()
                 val hachimiVersion = scanForHachimiMarker(stream)
                 if (hachimiVersion != null) {
-                    ValidationResult.Valid(version = hachimiVersion)
+                    ValidationResult.Valid(
+                        version = hachimiVersion,
+                        is16KbCompatible = alignment?.is16KbCompatible
+                    )
                 } else {
                     ValidationResult.Error(R.string.lib_guard_no_signature, isPluginOrOtherType = true)
                 }
@@ -114,25 +137,41 @@ object HachimiLibrarySafeguard {
     fun validatePluginLibrary(inputStream: InputStream, fileName: String): ValidationResult {
         return try {
             BufferedInputStream(inputStream).use { stream ->
-                val header = ByteArray(64)
-                val bytesRead = stream.read(header)
+                stream.mark(NativeLibAlignment.HEADER_PROBE_BYTES)
+                val probe = ByteArray(NativeLibAlignment.HEADER_PROBE_BYTES)
+                var bytesRead = 0
+                while (bytesRead < probe.size) {
+                    val read = stream.read(probe, bytesRead, probe.size - bytesRead)
+                    if (read == -1) break
+                    bytesRead += read
+                }
                 if (bytesRead < 64) {
                     return ValidationResult.Error(R.string.lib_guard_too_small)
                 }
 
                 for (i in 0 until 4) {
-                    if (header[i] != ELF_MAGIC[i]) {
+                    if (probe[i] != ELF_MAGIC[i]) {
                         return ValidationResult.Error(R.string.plugin_guard_not_elf)
                     }
                 }
 
-                if (header[4] != ELF_CLASS_64) {
+                if (probe[4] != ELF_CLASS_64) {
                     return ValidationResult.Error(R.string.plugin_guard_not_64_bit)
                 }
 
-                val machine = (header[18].toInt() and 0xFF) or ((header[19].toInt() and 0xFF) shl 8)
+                val machine = (probe[18].toInt() and 0xFF) or ((probe[19].toInt() and 0xFF) shl 8)
                 if (machine != EM_AARCH64) {
                     return ValidationResult.Error(R.string.plugin_guard_wrong_machine)
+                }
+
+                // Validate 16 KB page alignment on 16 KB devices
+                val probeBytes = if (bytesRead == probe.size) probe else probe.copyOf(bytesRead)
+                val alignment = NativeLibAlignment.inspect(probeBytes)
+                if (NativeLibAlignment.isDevice16KbPage && alignment != null && !alignment.is16KbCompatible) {
+                    return ValidationResult.Error(
+                        R.string.plugin_guard_not_16kb_aligned,
+                        listOf(fileName, alignment.maxLoadAlignment)
+                    )
                 }
 
                 val lower = fileName.lowercase()
@@ -145,12 +184,16 @@ object HachimiLibrarySafeguard {
                 }
 
                 // Verify it doesn't accidentally contain the main Hachimi engine marker
+                stream.reset()
                 val hachimiMarker = scanForHachimiMarker(stream)
                 if (hachimiMarker != null) {
                     return ValidationResult.Error(R.string.plugin_guard_is_engine, listOf(hachimiMarker))
                 }
 
-                ValidationResult.Valid(version = "plugin")
+                ValidationResult.Valid(
+                    version = "plugin",
+                    is16KbCompatible = alignment?.is16KbCompatible
+                )
             }
         } catch (e: Exception) {
             ValidationResult.Error(R.string.plugin_guard_failed, listOf(reason(e)))

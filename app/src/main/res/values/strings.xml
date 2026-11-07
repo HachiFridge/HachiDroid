@@ -378,6 +378,8 @@ You can migrate manually instead: export the signing key from UmaPatcher-Edge\'s
     <string name="plugin_guard_stock_name">Cannot add %1$s as a plugin: that name belongs to a core game library.</string>
     <string name="plugin_guard_is_engine">This is the Hachimi-Edge mod library (%1$s), not a plugin. Set it as the mod library instead.</string>
     <string name="plugin_guard_failed">Could not validate the plugin: %1$s</string>
+    <string name="lib_guard_not_16kb_aligned">This library is not aligned to 16 KB page boundaries (max alignment: %1$d bytes). Your device requires 16 KB page compatibility.</string>
+    <string name="plugin_guard_not_16kb_aligned">The plugin %1$s is not aligned to 16 KB page boundaries (max alignment: %2$d bytes). Your device requires 16 KB page compatibility.</string>
     <string name="astraea_mod_source_title">DaringTact Mod Source</string>
     <string name="mod_no_file">No file selected</string>
     <string name="libraries_title">Libraries</string>
