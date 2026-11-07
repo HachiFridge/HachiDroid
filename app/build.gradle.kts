@@ -18,8 +18,8 @@ android {
         minSdk = 24
         targetSdk = 37
 
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
 
         // Self-release identity, shared by the in-app updater and the About links.
         buildConfigField("String", "REPO_PATH", "\"HachiFridge/HachiDroid\"")
