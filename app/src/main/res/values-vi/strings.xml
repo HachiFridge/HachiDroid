@@ -81,6 +81,12 @@
     <string name="installing">Đang cài đặt</string>
     <string name="install_completed">Cài đặt hoàn tất.</string>
     <string name="install_failed">Cài đặt thất bại.</string>
+    <string name="install_error_conflict">Xung đột chữ ký: Ứng dụng đã được cài đặt với một chữ ký khác. Nếu phiên bản gốc từ Play Store đang được cài đặt, vui lòng gỡ cài đặt trước hoặc sử dụng Cài trực tiếp.</string>
+    <string name="install_error_storage">Không đủ dung lượng lưu trữ: Hãy giải phóng dung lượng trên thiết bị và thử lại.</string>
+    <string name="install_error_incompatible">Gói không tương thích: Tệp APK không tương thích với thiết bị này hoặc phiên bản Android.</string>
+    <string name="install_error_blocked">Cài đặt bị chặn: Bị chặn bởi chính sách thiết bị, quyền kiểm soát của phụ huynh hoặc tính năng bảo vệ an ninh.</string>
+    <string name="install_error_aborted">Quá trình cài đặt đã bị người dùng hủy.</string>
+    <string name="install_error_invalid">Gói không hợp lệ: Tệp APK được tạo bị hỏng hoặc bị hệ thống từ chối.</string>
     <string name="file_saved">Đã lưu file.</string>
     <string name="failed_to_save_file">Không thể lưu file.</string>
     <string name="extracting_file">Đang giải nén: %s</string>
@@ -330,6 +336,8 @@
     <string name="plugin_guard_stock_name">Không thể thêm %1$s làm plugin: tên này thuộc thư viện lõi của game.</string>
     <string name="plugin_guard_is_engine">Đây là thư viện Hachimi-Edge (%1$s), không phải plugin. Hãy đặt nó làm thư viện mod.</string>
     <string name="plugin_guard_failed">Không thể xác thực plugin: %1$s</string>
+    <string name="lib_guard_not_16kb_aligned">Thư viện này không được căn chỉnh theo ranh giới trang 16 KB (căn chỉnh tối đa: %1$d byte). Thiết bị của bạn yêu cầu khả năng tương thích trang 16 KB.</string>
+    <string name="plugin_guard_not_16kb_aligned">Plugin %1$s không được căn chỉnh theo ranh giới trang 16 KB (căn chỉnh tối đa: %2$d byte). Thiết bị của bạn yêu cầu khả năng tương thích trang 16 KB.</string>
     <string name="astraea_mod_source_title">Nguồn mod DaringTact</string>
     <string name="mod_no_file">Chưa chọn tệp</string>
     <string name="libraries_title">Thư viện</string>

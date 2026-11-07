@@ -94,6 +94,12 @@
     <string name="installing">설치 중</string>
     <string name="install_completed">설치가 완료되었습니다.</string>
     <string name="install_failed">설치에 실패했습니다.</string>
+    <string name="install_error_conflict">서명 충돌: 다른 서명으로 이미 앱이 설치되어 있습니다. 스토어 정식 버전이 설치되어 있다면 먼저 삭제하거나 직접 설치(Direct Install)를 사용하세요.</string>
+    <string name="install_error_storage">저장 공간 부족: 기기의 저장 공간을 확보한 후 다시 시도하세요.</string>
+    <string name="install_error_incompatible">호환되지 않는 패키지: 이 APK는 현재 기기 또는 Android 버전과 호환되지 않습니다.</string>
+    <string name="install_error_blocked">설치 차단됨: 기기 정책, 자녀 보호 기능 또는 보안 보호 기능에 의해 차단되었습니다.</string>
+    <string name="install_error_aborted">사용자가 설치를 취소했습니다.</string>
+    <string name="install_error_invalid">잘못된 패키지: 생성된 APK가 손상되었거나 시스템에서 거부되었습니다.</string>
     <string name="file_saved">파일이 저장되었습니다.</string>
     <string name="failed_to_save_file">파일을 저장하지 못했습니다.</string>
     <string name="extracting_file">파일 압축 해제 중: %s</string>
@@ -365,6 +371,8 @@
     <string name="plugin_guard_stock_name">%1$s은(는) 게임 핵심 라이브러리 이름이라서 플러그인으로 추가할 수 없습니다.</string>
     <string name="plugin_guard_is_engine">이것은 플러그인이 아니라 Hachimi-Edge 본체(%1$s)입니다. 모드 라이브러리로 설정하세요.</string>
     <string name="plugin_guard_failed">플러그인을 검증할 수 없습니다: %1$s</string>
+    <string name="lib_guard_not_16kb_aligned">이 라이브러리는 16KB 페이지 경계에 정렬되어 있지 않습니다 (최대 정렬: %1$d바이트). 사용 중인 기기는 16KB 페이지 호환성이 필요합니다.</string>
+    <string name="plugin_guard_not_16kb_aligned">플러그인 %1$s이(가) 16KB 페이지 경계에 정렬되어 있지 않습니다 (최대 정렬: %2$d바이트). 사용 중인 기기는 16KB 페이지 호환성이 필요합니다.</string>
     <string name="astraea_mod_source_title">DaringTact 모드 소스</string>
     <string name="mod_no_file">선택된 파일 없음</string>
     <string name="libraries_title">라이브러리</string>

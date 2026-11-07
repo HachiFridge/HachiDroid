@@ -94,6 +94,12 @@
     <string name="installing">インストール中</string>
     <string name="install_completed">インストールが完了しました。</string>
     <string name="install_failed">インストールに失敗しました。</string>
+    <string name="install_error_conflict">署名の不一致: 異なる署名を持つ同じアプリが既にインストールされています。公式版がインストールされている場合は、事前にアンインストールするかダイレクトインストールを使用してください。</string>
+    <string name="install_error_storage">空き容量不足: 端末のストレージ容量を確保してから再試行してください。</string>
+    <string name="install_error_incompatible">非対応パッケージ: このAPKはお使いの端末またはAndroidバージョンに対応していません。</string>
+    <string name="install_error_blocked">インストールのブロック: 端末ポリシー、保護者による使用制限、またはセキュリティ機能によりブロックされました。</string>
+    <string name="install_error_aborted">ユーザーによってインストールがキャンセルされました。</string>
+    <string name="install_error_invalid">無効なパッケージ: 生成されたAPKが破損しているか、システムによって拒否されました。</string>
     <string name="file_saved">ファイルを保存しました。</string>
     <string name="failed_to_save_file">ファイルの保存に失敗しました。</string>
     <string name="extracting_file">ファイルを展開中: %s</string>
@@ -365,6 +371,8 @@
     <string name="plugin_guard_stock_name">%1$s はゲームの主要ライブラリの名前のため、プラグインとして追加できません。</string>
     <string name="plugin_guard_is_engine">これはプラグインではなく Hachimi-Edge 本体 (%1$s) です。Mod ライブラリとして設定してください。</string>
     <string name="plugin_guard_failed">プラグインを検証できませんでした: %1$s</string>
+    <string name="lib_guard_not_16kb_aligned">このライブラリは16KBページ境界にアラインされていません（最大アライメント: %1$dバイト）。お使いの端末は16KBページ互換性が必要です。</string>
+    <string name="plugin_guard_not_16kb_aligned">プラグイン %1$s は16KBページ境界にアラインされていません（最大アライメント: %2$dバイト）。お使いの端末は16KBページ互換性が必要です。</string>
     <string name="astraea_mod_source_title">DaringTact MOD取得元</string>
     <string name="mod_no_file">ファイルが選択されていません</string>
     <string name="libraries_title">ライブラリ</string>

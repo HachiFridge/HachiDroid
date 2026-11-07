@@ -84,6 +84,12 @@
     <string name="installing">Установка</string>
     <string name="install_completed">Установка завершена.</string>
     <string name="install_failed">Установка не удалась.</string>
+    <string name="install_error_conflict">Конфликт подписей: приложение уже установлено с другой подписью. Если у вас установлена официальная версия из Play Store, удалите её или используйте прямую установку.</string>
+    <string name="install_error_storage">Недостаточно места: освободите место на устройстве и повторите попытку.</string>
+    <string name="install_error_incompatible">Несовместимый пакет: этот APK несовместим с данным устройством или версией Android.</string>
+    <string name="install_error_blocked">Установка заблокирована: заблокировано политикой устройства, родительским контролем или системой безопасности.</string>
+    <string name="install_error_aborted">Установка отменена пользователем.</string>
+    <string name="install_error_invalid">Недопустимый пакет: созданный APK повреждён или отклонён системой.</string>
     <string name="file_saved">Файл сохранён.</string>
     <string name="failed_to_save_file">Не удалось сохранить файл.</string>
     <string name="extracting_file">Извлечение файла: %s</string>
@@ -333,6 +339,8 @@
     <string name="plugin_guard_stock_name">Нельзя добавить %1$s как плагин: это имя основной библиотеки игры.</string>
     <string name="plugin_guard_is_engine">Это основная библиотека Hachimi-Edge (%1$s), а не плагин. Укажите её как библиотеку мода.</string>
     <string name="plugin_guard_failed">Не удалось проверить плагин: %1$s</string>
+    <string name="lib_guard_not_16kb_aligned">Эта библиотека не выровнена по границе страниц 16 КБ (макс. выравнивание: %1$d байт). Ваше устройство требует совместимости со страницами 16 КБ.</string>
+    <string name="plugin_guard_not_16kb_aligned">Плагин %1$s не выровнен по границе страниц 16 КБ (макс. выравнивание: %2$d байт). Ваше устройство требует совместимости со страницами 16 КБ.</string>
     <string name="astraea_mod_source_title">Источник мода DaringTact</string>
     <string name="mod_no_file">Файл не выбран</string>
     <string name="libraries_title">Библиотеки</string>

@@ -84,6 +84,12 @@
     <string name="installing">Ini-install</string>
     <string name="install_completed">Tapos nang i-install.</string>
     <string name="install_failed">Nabigong i-install.</string>
+    <string name="install_error_conflict">Hindi tugmang signature: Naka-install na ang app na may ibang signature. Kung naka-install ang opisyal na bersyon mula sa Play Store, i-uninstall muna ito o gamitin ang Direktang Install.</string>
+    <string name="install_error_storage">Kulang sa espasyo: Magbawas ng laman sa storage ng iyong device at subukan muli.</string>
+    <string name="install_error_incompatible">Hindi tugmang package: Hindi compatible ang APK sa device na ito o sa bersyon ng Android.</string>
+    <string name="install_error_blocked">Hinarang ang pag-install: Hinarang ng patakaran ng device, parental controls, o proteksyon sa seguridad.</string>
+    <string name="install_error_aborted">Kinansela ng gumagamit ang pag-install.</string>
+    <string name="install_error_invalid">Di-wastong package: Sira ang nabuong APK o tinanggihan ito ng system.</string>
     <string name="file_saved">Na-save ang file.</string>
     <string name="failed_to_save_file">Nabigong i-save ang file.</string>
     <string name="extracting_file">Ine-extract ang file: %s</string>
@@ -333,6 +339,8 @@
     <string name="plugin_guard_stock_name">Hindi maidaragdag ang %1$s bilang plugin: pangalan ito ng core library ng game.</string>
     <string name="plugin_guard_is_engine">Ito ang Hachimi-Edge library (%1$s), hindi plugin. Itakda ito bilang mod library.</string>
     <string name="plugin_guard_failed">Hindi ma-validate ang plugin: %1$s</string>
+    <string name="lib_guard_not_16kb_aligned">Ang library na ito ay hindi nakalinya sa 16 KB page boundaries (max alignment: %1$d bytes). Kinakailangan ng iyong device ang 16 KB page compatibility.</string>
+    <string name="plugin_guard_not_16kb_aligned">Ang plugin na %1$s ay hindi nakalinya sa 16 KB page boundaries (max alignment: %2$d bytes). Kinakailangan ng iyong device ang 16 KB page compatibility.</string>
     <string name="astraea_mod_source_title">Pinagmulan ng DaringTact Mod</string>
     <string name="mod_no_file">Walang napiling file</string>
     <string name="libraries_title">Mga Library</string>

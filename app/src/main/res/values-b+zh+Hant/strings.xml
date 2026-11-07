@@ -81,6 +81,12 @@
     <string name="installing">正在安裝</string>
     <string name="install_completed">安裝完成。</string>
     <string name="install_failed">安裝失敗。</string>
+    <string name="install_error_conflict">簽名衝突：應用程式已安裝且簽名不同。若目前已安裝官方原版應用程式，請先解除安裝或使用直接安裝。</string>
+    <string name="install_error_storage">儲存空間不足：請清理裝置儲存空間後重試。</string>
+    <string name="install_error_incompatible">不相容的軟體包：此 APK 與此裝置或 Android 版本不相容。</string>
+    <string name="install_error_blocked">安裝遭封鎖：已被裝置政策、家長監護或安全性防護封鎖。</string>
+    <string name="install_error_aborted">使用者已取消安裝。</string>
+    <string name="install_error_invalid">無效的軟體包：產生的 APK 已損毀或被系統拒絕。</string>
     <string name="file_saved">檔案已儲存。</string>
     <string name="failed_to_save_file">未能儲存檔案。</string>
     <string name="extracting_file">正在解壓縮檔案：%s</string>
@@ -330,6 +336,8 @@
     <string name="plugin_guard_stock_name">無法將 %1$s 新增為外掛：該名稱屬於遊戲核心函式庫。</string>
     <string name="plugin_guard_is_engine">這是 Hachimi-Edge 本體 (%1$s)，不是外掛。請將其設為 Mod 函式庫。</string>
     <string name="plugin_guard_failed">無法驗證此外掛：%1$s</string>
+    <string name="lib_guard_not_16kb_aligned">此函式庫未對齊至 16 KB 頁面邊界（最大對齊：%1$d 位元組）。您的裝置需要 16 KB 頁面相容性。</string>
+    <string name="plugin_guard_not_16kb_aligned">外掛程式 %1$s 未對齊至 16 KB 頁面邊界（最大對齊：%2$d 位元組）。您的裝置需要 16 KB 頁面相容性。</string>
     <string name="astraea_mod_source_title">DaringTact 模組來源</string>
     <string name="mod_no_file">未選取檔案</string>
     <string name="libraries_title">程式庫</string>
