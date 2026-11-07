@@ -258,12 +258,7 @@ class AppPatcher(
                 return false
 
             return when {
-                shizukuInstall -> {
-                    val externalFiles = moveToExternalForShizuku(context, apkFiles) ?: return false
-                    val success = installApksShizuku(context, externalFiles)
-                    externalFiles.firstOrNull()?.parentFile?.deleteRecursively()
-                    success
-                }
+                shizukuInstall -> installApksShizuku(context, apkFiles)
                 legacyInstall -> timed("merge apks") { mergeAndInstallLegacy(context, apkFiles) }
                 install -> installApks(context, apkFiles)
                 else -> {
@@ -294,12 +289,7 @@ class AppPatcher(
                 return false
 
             return when {
-                shizukuInstall -> {
-                    val externalFiles = moveToExternalForShizuku(context, arrayOf(zip.file)) ?: return false
-                    val success = installApksShizuku(context, externalFiles)
-                    externalFiles.firstOrNull()?.parentFile?.deleteRecursively()
-                    success
-                }
+                shizukuInstall -> installApksShizuku(context, arrayOf(zip.file))
                 legacyInstall -> installLegacyOrFallback(context, zip.file)
                 install -> installApks(context, arrayOf(zip.file))
                 else -> {
@@ -334,12 +324,7 @@ class AppPatcher(
                 return false
 
             return when {
-                shizukuInstall -> {
-                    val externalFiles = moveToExternalForShizuku(context, files) ?: return false
-                    val success = installApksShizuku(context, externalFiles)
-                    externalFiles.firstOrNull()?.parentFile?.deleteRecursively()
-                    success
-                }
+                shizukuInstall -> installApksShizuku(context, files)
                 legacyInstall -> timed("merge apks") { mergeAndInstallLegacy(context, files) }
                 install -> installApks(context, files)
                 else -> {
@@ -906,51 +891,6 @@ class AppPatcher(
             return false
         }
         return timed("shizuku install") { ShizukuInstaller.install(context, files, this) }
-    }
-
-    private suspend fun moveToExternalForShizuku(context: Context, files: Array<File>): Array<File>? =
-        timed("stage for shizuku") { stageToExternalCache(context, files) }
-
-    private fun stageToExternalCache(context: Context, files: Array<File>): Array<File>? {
-        task = context.getString(R.string.shizuku_moving_files)
-        progress = -1f
-
-        val externalDir = context.externalCacheDir?.resolve("shizuku") ?: run {
-            log(context.getString(R.string.external_cache_unavailable))
-            return null
-        }
-        externalDir.deleteRecursively()
-        if (!externalDir.mkdirs()) {
-            log(context.getString(R.string.external_cache_unavailable))
-            return null
-        }
-
-        val movedFiles = mutableListOf<File>()
-        try {
-            for (originalFile in files) {
-                val destinationFile = externalDir.resolve(originalFile.name)
-                if (!originalFile.exists()) {
-                    log(context.getString(R.string.copy_file_failed, originalFile.path))
-                    return null
-                }
-
-                originalFile.copyTo(destinationFile, overwrite = true)
-                if (!destinationFile.exists() || destinationFile.length() <= 0L) {
-                    log(context.getString(R.string.copy_file_failed, destinationFile.path))
-                    return null
-                }
-
-                originalFile.delete()
-                movedFiles.add(destinationFile)
-            }
-            return movedFiles.toTypedArray()
-        } catch (e: Exception) {
-            movedFiles.forEach { it.delete() }
-            log(context.getString(R.string.shizuku_files_move_failed, e.message))
-            logException(e)
-            externalDir.deleteRecursively()
-            return null
-        }
     }
 
     private suspend fun createAndSaveXapk(context: Context, files: Array<File>): Boolean {

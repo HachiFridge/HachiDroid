@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.ParcelFileDescriptor
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.BuildConfig
 import dev.hachifridge.hachidroid.patcher.Patcher
@@ -41,10 +42,16 @@ object ShizukuInstaller {
 
                     thread {
                         val installerService = IInstallerService.Stub.asInterface(service)
+                        val openedFds = mutableListOf<ParcelFileDescriptor>()
                         try {
                             patcher.task = context.getString(R.string.shizuku_installing)
-                            val paths = files.map { it.absolutePath }
-                            val result = installerService.install(paths)
+                            for (file in files) {
+                                openedFds.add(
+                                    ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                                )
+                            }
+                            val names = files.map { it.name }
+                            val result = installerService.installFromFds(openedFds, names)
 
                             if (result == null) {
                                 patcher.log(context.getString(R.string.shizuku_install_success))
@@ -57,6 +64,7 @@ object ShizukuInstaller {
                             patcher.log(context.getString(R.string.shizuku_install_error, e.message))
                             resumeOnce(false)
                         } finally {
+                            openedFds.forEach { runCatching { it.close() } }
                             Shizuku.unbindUserService(userServiceArgs, this, true)
                         }
                     }
