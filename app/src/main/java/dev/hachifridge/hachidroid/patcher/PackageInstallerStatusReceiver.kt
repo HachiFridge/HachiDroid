@@ -34,8 +34,28 @@ class PackageInstallerStatusReceiver : BroadcastReceiver() {
             }
             else -> {
                 val statusMessage = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                if (!statusMessage.isNullOrEmpty())
-                    PatcherLauncher.log(context.getString(R.string.install_failed) + ": $statusMessage")
+                val friendlyDetail = when (status) {
+                    PackageInstaller.STATUS_FAILURE_CONFLICT -> context.getString(R.string.install_error_conflict)
+                    PackageInstaller.STATUS_FAILURE_STORAGE -> context.getString(R.string.install_error_storage)
+                    PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> context.getString(R.string.install_error_incompatible)
+                    PackageInstaller.STATUS_FAILURE_BLOCKED -> context.getString(R.string.install_error_blocked)
+                    PackageInstaller.STATUS_FAILURE_ABORTED -> context.getString(R.string.install_error_aborted)
+                    PackageInstaller.STATUS_FAILURE_INVALID -> context.getString(R.string.install_error_invalid)
+                    else -> null
+                }
+
+                val failureLog = buildString {
+                    append(context.getString(R.string.install_failed))
+                    if (!statusMessage.isNullOrEmpty()) {
+                        append(": ")
+                        append(statusMessage)
+                    }
+                    if (friendlyDetail != null) {
+                        append("\n-> ")
+                        append(friendlyDetail)
+                    }
+                }
+                PatcherLauncher.log(failureLog)
                 val pending = contList.toList()
                 contList.clear()
                 pending.forEach { it.resume(false) }

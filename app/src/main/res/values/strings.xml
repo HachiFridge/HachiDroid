@@ -110,6 +110,12 @@
     <string name="installing">Installing</string>
     <string name="install_completed">Install completed.</string>
     <string name="install_failed">Install failed.</string>
+    <string name="install_error_conflict">Signature conflict: The app is already installed with a different signature. If the stock Play Store version is currently installed, uninstall it first or use Direct Install.</string>
+    <string name="install_error_storage">Insufficient storage: Free up storage space on your device and try again.</string>
+    <string name="install_error_incompatible">Incompatible package: The APK is incompatible with this device or Android version.</string>
+    <string name="install_error_blocked">Installation blocked: Blocked by device policy, parental controls, or security protection.</string>
+    <string name="install_error_aborted">Installation was cancelled by the user.</string>
+    <string name="install_error_invalid">Invalid package: The generated APK is corrupt or rejected by the system.</string>
     <string name="file_saved">File saved.</string>
     <string name="failed_to_save_file">Failed to save file.</string>
     <string name="extracting_file">Extracting file: %s</string>
