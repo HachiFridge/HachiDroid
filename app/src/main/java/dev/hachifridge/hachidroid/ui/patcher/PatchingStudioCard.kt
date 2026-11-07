@@ -275,8 +275,9 @@ fun PatchingStudioCard(
     val selectedFilesUnavailable = stringResource(R.string.selected_files_no_longer_available)
     val pendingUpdateDeepLink by mainViewModel.pendingUpdateDeepLink
 
-    LaunchedEffect(pendingUpdateDeepLink) {
+    LaunchedEffect(pendingUpdateDeepLink, mode) {
         if (!pendingUpdateDeepLink) return@LaunchedEffect
+        if (mode != PatchMode.TRACEN) return@LaunchedEffect
         mainViewModel.pendingUpdateDeepLink.value = false
 
         val needsFiles = currentMethod != PatcherInstallMethod.DIRECT

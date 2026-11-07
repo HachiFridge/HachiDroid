@@ -1,4 +1,7 @@
 package dev.hachifridge.hachidroid.ui.screen
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
 
 import android.content.Context
 import android.content.pm.PackageInfo
@@ -111,6 +114,25 @@ class HomeViewModel : ViewModel() {
             astraeaModSource = context.getPrefValue(PrefKey.ASTRAEA_MOD_SOURCE) as String
             astraeaModSoName = context.getPrefValue(PrefKey.ASTRAEA_MOD_SO_NAME) as String
             daringTactRepo = context.getPrefValue(PrefKey.DARINGTACT_REPO) as String
+        }
+        observeModeChanges(context)
+    }
+
+    private var modeJob: kotlinx.coroutines.Job? = null
+    private fun observeModeChanges(context: Context) {
+        modeJob?.cancel()
+        modeJob = viewModelScope.launch {
+            context.dataStore.data
+                .map { PatchMode.fromPref(it[PrefKey.PATCH_MODE]) }
+                .distinctUntilChanged()
+                .collectLatest { nextMode ->
+                    if (mode != nextMode) {
+                        mode = nextMode
+                        GameChecker.applyMode(nextMode, context.packageManager)
+                        _packageInfo.value = GameChecker.getPackageInfo(context.packageManager)
+                        _libraries.value = withContext(Dispatchers.IO) { AstraeaLibraries.inspect(context) }
+                    }
+                }
         }
     }
 

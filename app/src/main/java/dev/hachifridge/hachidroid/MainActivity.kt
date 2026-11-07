@@ -1,4 +1,8 @@
 package dev.hachifridge.hachidroid
+import androidx.lifecycle.lifecycleScope
+import androidx.datastore.preferences.core.edit
+import dev.hachifridge.hachidroid.core.GameChecker
+import kotlinx.coroutines.launch
 
 import android.content.Intent
 import android.os.Bundle
@@ -141,10 +145,13 @@ class MainActivity : ComponentActivity() {
         val isUpdateScheme = uri.scheme == "hachidroid" || uri.scheme == "umapatcher-edge"
         if (!isUpdateScheme || uri.host != "update-hachimi") return
 
-        // Deliver straight to the ViewModel: on a cold start this lands before init(), which is
-        // fine because Home consumes the flag when it composes. A warm onNewIntent() previously
-        // wrote to a companion flag nothing ever read again, so the prompt never appeared.
-        mainViewModel.pendingUpdateDeepLink.value = true
+        // Switch to Tracen mode so the Hachimi update targets Umamusume rather than whatever
+        // mode was active previously (e.g. Astraea).
+        lifecycleScope.launch {
+            dataStore.edit { it[PrefKey.PATCH_MODE] = PatchMode.TRACEN.prefValue }
+            GameChecker.applyMode(PatchMode.TRACEN, packageManager)
+            mainViewModel.pendingUpdateDeepLink.value = true
+        }
     }
 
     override fun onDestroy() {
