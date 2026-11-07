@@ -408,4 +408,7 @@ You can migrate manually instead: export the signing key from UmaPatcher-Edge\'s
     <string name="direct_root_injection_desc">Patches the installed game directly without needing external APK files.</string>
     <string name="astraea_assets_missing">The bundled Application class is missing from this build. Reinstall HachiDroid.</string>
     <string name="stage_patch_manifest">Patch manifest</string>
+
+    <string name="notification_channel_patching">Patching Progress</string>
+    <string name="notification_channel_desc">Displays progress and status while patching game APKs</string>
 </resources>

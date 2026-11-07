@@ -395,4 +395,7 @@
     <string name="direct_root_injection_desc">外部 APK ファイルなしで、インストール済みのゲームに直接パッチを適用します。</string>
     <string name="astraea_assets_missing">同梱の Application クラスがこのビルドに見つかりません。HachiDroid を再インストールしてください。</string>
     <string name="stage_patch_manifest">マニフェストをパッチ</string>
+
+    <string name="notification_channel_patching">パッチ適用状況</string>
+    <string name="notification_channel_desc">ゲームAPKのパッチ適用進行状況とステータスを表示します</string>
 </resources>

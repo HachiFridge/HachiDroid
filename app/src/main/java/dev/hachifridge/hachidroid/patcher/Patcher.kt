@@ -45,6 +45,9 @@ abstract class Patcher(
     /** Headline shown at the top of the patching screen when the run fails. */
     open val failureTitleRes: Int = R.string.patch_failed_title
 
+    /** Notification title shown while this patcher runs in the background. */
+    open val notificationTitleRes: Int = R.string.patching
+
     private var lastEmittedProgress = -1f
     private var lastProgressEmitAt = 0L
 
@@ -62,6 +65,7 @@ abstract class Patcher(
                 lastEmittedProgress = value
                 lastProgressEmitAt = now
                 onProgress(value)
+                PatchingService.updateProgress(value)
             }
         }
 
@@ -70,6 +74,7 @@ abstract class Patcher(
             if (field == value) return
             field = value
             onTask(value)
+            PatchingService.updateTask(value)
         }
 
     fun setCallbacks(

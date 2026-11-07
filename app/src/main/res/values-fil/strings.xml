@@ -363,4 +363,7 @@
     <string name="direct_root_injection_desc">Direktang pina-patch ang naka-install na laro nang hindi kailangan ng mga panlabas na APK file.</string>
     <string name="astraea_assets_missing">Nawawala ang kasamang Application class sa build na ito. Muling i-install ang HachiDroid.</string>
     <string name="stage_patch_manifest">I-patch ang manifest</string>
+
+    <string name="notification_channel_patching">Progreso ng Pag-patch</string>
+    <string name="notification_channel_desc">Ipinapakita ang progreso at status habang nagpa-patch ng mga game APK</string>
 </resources>

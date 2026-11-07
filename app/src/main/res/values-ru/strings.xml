@@ -363,4 +363,7 @@
     <string name="direct_root_injection_desc">Патчит установленную игру напрямую без использования внешних APK-файлов.</string>
     <string name="astraea_assets_missing">Встроенный класс Application отсутствует в этой сборке. Переустановите HachiDroid.</string>
     <string name="stage_patch_manifest">Патч манифеста</string>
+
+    <string name="notification_channel_patching">Прогресс патчинга</string>
+    <string name="notification_channel_desc">Отображает прогресс и статус во время патчинга APK игры</string>
 </resources>

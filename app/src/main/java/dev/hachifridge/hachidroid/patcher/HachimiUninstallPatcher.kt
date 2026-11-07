@@ -14,6 +14,7 @@ class HachimiUninstallPatcher : Patcher() {
     override val successMessageRes: Int = R.string.uninstall_success_msg
     override val failureMessageRes: Int = R.string.uninstall_failed_msg
     override val failureTitleRes: Int = R.string.uninstall_failed_title
+    override val notificationTitleRes: Int = R.string.uninstall_hachimi
 
     override suspend fun run(context: Context): Boolean {
         val packageInfo = GameChecker.getPackageInfo(context.packageManager) ?: run {

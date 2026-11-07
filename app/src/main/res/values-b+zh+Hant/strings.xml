@@ -360,4 +360,7 @@
     <string name="direct_root_injection_desc">直接為已安裝的遊戲修補，無需外部 APK 檔案。</string>
     <string name="astraea_assets_missing">此組建缺少隨附的 Application 類別。請重新安裝 HachiDroid。</string>
     <string name="stage_patch_manifest">修補資訊清單</string>
+
+    <string name="notification_channel_patching">修補進度</string>
+    <string name="notification_channel_desc">顯示修補遊戲 APK 時的進度與狀態</string>
 </resources>

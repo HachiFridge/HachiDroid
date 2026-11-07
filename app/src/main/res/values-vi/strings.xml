@@ -360,4 +360,7 @@
     <string name="direct_root_injection_desc">Vá trực tiếp game đã cài đặt mà không cần tệp APK bên ngoài.</string>
     <string name="astraea_assets_missing">Lớp Application đi kèm bị thiếu trong bản dựng này. Hãy cài đặt lại HachiDroid.</string>
     <string name="stage_patch_manifest">Vá manifest</string>
+
+    <string name="notification_channel_patching">Tiến trình vá</string>
+    <string name="notification_channel_desc">Hiển thị tiến trình và trạng thái khi vá APK trò chơi</string>
 </resources>

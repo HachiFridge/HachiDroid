@@ -395,4 +395,7 @@
     <string name="direct_root_injection_desc">외부 APK 파일 없이 설치된 게임에 직접 패치를 적용합니다.</string>
     <string name="astraea_assets_missing">번들된 Application 클래스가 이 빌드에 없습니다. HachiDroid를 다시 설치하세요.</string>
     <string name="stage_patch_manifest">매니페스트 패치</string>
+
+    <string name="notification_channel_patching">패치 진행 상황</string>
+    <string name="notification_channel_desc">게임 APK 패치 진행률 및 상태를 표시합니다</string>
 </resources>

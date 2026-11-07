@@ -116,6 +116,22 @@ fun PatchingScreen(
     // Read before the run starts: PatcherLauncher clears the patcher once it finishes.
     val failureTitle = stringResource(PatcherLauncher.patcher?.failureTitleRes ?: R.string.patch_failed_title)
 
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        val notifPermLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { /* Proceed regardless of grant */ }
+
+        LaunchedEffect(Unit) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                notifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     val sfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.handleSaveFileResult(context, it.data?.data, completedStr)
     }
