@@ -193,6 +193,7 @@ class AppPatcher(
         val hachimiModLib = context.hachimiModLib
 
         val packageInfo = GameChecker.getPackageInfo(context.packageManager) ?: return false
+        RootUtils.killPackage(packageInfo.packageName)
         val publicSourceDir = packageInfo.applicationInfo?.publicSourceDir ?: return false
         val appApkDir = File(publicSourceDir).parentFile ?: return false
 

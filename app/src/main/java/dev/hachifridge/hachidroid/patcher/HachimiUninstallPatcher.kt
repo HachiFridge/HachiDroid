@@ -20,6 +20,7 @@ class HachimiUninstallPatcher : Patcher() {
             log(context.getString(R.string.game_not_installed))
             return false
         }
+        RootUtils.killPackage(packageInfo.packageName)
         val appInfo = packageInfo.applicationInfo ?: return false
 
         // Unmount legacy mounts first so restored files aren't shadowed and nothing remounts the APK later.

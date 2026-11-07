@@ -75,11 +75,16 @@ object RootUtils {
         ).exec()
     }
 
+    fun restoreContext(path: String): Shell.Result {
+        return Shell.cmd("restorecon -F ${shellArg(path)} 2>/dev/null || true").exec()
+    }
+
     fun copyGameLibrary(src: String, dest: String): Shell.Result {
         return Shell.cmd(
             "cp ${shellArg(src)} ${shellArg(dest)}",
             "chown system:system ${shellArg(dest)}",
-            "chmod 755 ${shellArg(dest)}"
+            "chmod 755 ${shellArg(dest)}",
+            "restorecon -F ${shellArg(dest)} 2>/dev/null || true"
         ).exec()
     }
 
@@ -87,7 +92,8 @@ object RootUtils {
         return Shell.cmd(
             "mv ${shellArg(src)} ${shellArg(dest)}",
             "chown system:system ${shellArg(dest)}",
-            "chmod 755 ${shellArg(dest)}"
+            "chmod 755 ${shellArg(dest)}",
+            "restorecon -F ${shellArg(dest)} 2>/dev/null || true"
         ).exec()
     }
 
@@ -95,5 +101,9 @@ object RootUtils {
         return Shell.cmd(
             "find ${shellArg(dir)} -maxdepth 1 -type f -name 'libhachimi_*.so' -delete"
         ).exec()
+    }
+
+    fun killPackage(packageName: String): Shell.Result {
+        return Shell.cmd("am force-stop ${shellArg(packageName)}").exec()
     }
 }
