@@ -1,4 +1,4 @@
-package dev.hachifridge.hachidroid.core
+package dev.hachifridge.hachidroid.client
 
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
@@ -11,18 +11,18 @@ import org.junit.Test
  * Package visibility is static from API 30 on: an id that is not listed there is invisible to
  * PackageManager, so an installed game reads as "not installed" — the hero card says so, the
  * launch intent comes back null and the management screen lists nothing. The manifest cannot
- * read [PatchMode], so this test is what keeps a newly added region declared.
+ * read [Client], so this test is what keeps a newly added region declared.
  */
-class PatchModeManifestTest {
+class ClientManifestTest {
 
     @Test
     fun everyModePackageIsQueryable() {
         val declared = queriedPackages()
-        val expected = PatchMode.entries.flatMap { mode -> mode.packageNames }
+        val expected = Client.entries.flatMap { mode -> mode.packageNames }
 
         val missing = expected.filterNot { it in declared }
         assertTrue(
-            "Packages in PatchMode but not in the manifest queries block: $missing. " +
+            "Packages in Client but not in the manifest queries block: $missing. " +
                 "Add them to app/src/main/AndroidManifest.xml.",
             missing.isEmpty()
         )

@@ -13,10 +13,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.topjohnwu.superuser.Shell
+import dev.hachifridge.hachidroid.client.PluginEntry
+import dev.hachifridge.hachidroid.client.TracenPlugins
 import dev.hachifridge.hachidroid.patcher.HACHIDROID_KS_PASSWORD
 import dev.hachifridge.hachidroid.patcher.RootUtils
 import dev.hachifridge.hachidroid.utils.ksFile
-import dev.hachifridge.hachidroid.utils.pluginsDir
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -372,17 +373,18 @@ object UpeMigration {
 
                 // 5. Plugins: copy missing files, append missing manifest entries.
                 var pluginsImported = 0
-                val manifest = HachimiPluginManager.listPlugins(context)
+                val manifest = TracenPlugins.listPlugins(context)
                 for ((src, _) in parsed) {
                     val sourcePlugins = rootListDir(sourcePath(src, "files/plugins"))
                     if (sourcePlugins.isEmpty()) continue
-                    if (!context.pluginsDir.exists()) context.pluginsDir.mkdirs()
+                    val pluginsDir = TracenPlugins.directory(context)
+                    if (!pluginsDir.exists()) pluginsDir.mkdirs()
                     val enabledBySource = readSourcePluginManifest(
                         stagingDir.resolve("${src.packageName}_plugins.json"),
                         src
                     )
                     for (fileName in sourcePlugins) {
-                        val target = context.pluginsDir.resolve(fileName)
+                        val target = pluginsDir.resolve(fileName)
                         if (!target.exists() &&
                             !rootCopyInto(sourcePath(src, "files/plugins/$fileName"), target)
                         ) {
@@ -390,7 +392,7 @@ object UpeMigration {
                         }
                         if (manifest.none { it.fileName == fileName }) {
                             manifest.add(
-                                HachimiPluginEntry(
+                                PluginEntry(
                                     name = fileName.removeSuffix(".so"),
                                     fileName = fileName,
                                     enabled = enabledBySource[fileName] ?: true
@@ -401,7 +403,7 @@ object UpeMigration {
                     }
                 }
                 if (pluginsImported > 0) {
-                    HachimiPluginManager.savePlugins(context, manifest)
+                    TracenPlugins.savePlugins(context, manifest)
                 }
 
                 val summary = MigrationSummary(

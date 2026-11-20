@@ -2,26 +2,28 @@ package dev.hachifridge.hachidroid.core
 
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import dev.hachifridge.hachidroid.client.Client
 
 object GameChecker {
-    /** Packages of the active [mode]; pickers list exactly these. */
+    /** Packages of the active [client]; pickers list exactly these. */
     val packageNames: Array<String>
-        get() = mode.packageNames.toTypedArray()
+        get() = client.packageNames.toTypedArray()
 
-    var mode: PatchMode = PatchMode.TRACEN
+    var client: Client = Client.TRACEN
         private set
 
     var currentPackageName: String? = null
 
     /**
-     * Switches the active mode and resolves a target when the current one no longer belongs to it.
+     * Switches the active client and resolves a target when the current one no longer belongs to
+     * it.
      *
      * A target that is still valid is kept: the user picked it explicitly on the app-select
-     * screen, so refreshing the dashboard must not silently fall back to the mode default.
+     * screen, so refreshing the dashboard must not silently fall back to the client default.
      */
-    fun applyMode(next: PatchMode, pm: PackageManager? = null) {
-        val changed = next != mode
-        mode = next
+    fun applyClient(next: Client, pm: PackageManager? = null) {
+        val changed = next != client
+        client = next
         val stillValid = currentPackageName?.let { it in next.packageNames } == true
         if (pm != null && (changed || !stillValid)) {
             init(pm)
@@ -30,14 +32,14 @@ object GameChecker {
 
     fun init(pm: PackageManager) {
         // Defaults to whichever version is installed
-        for (packageName in mode.packageNames) {
+        for (packageName in client.packageNames) {
             currentPackageName = packageName
             if (getPackageInfo(pm) != null) {
                 return
             }
         }
-        // Otherwise, the mode's default client
-        currentPackageName = mode.defaultPackageName
+        // Otherwise, the client's default target
+        currentPackageName = client.defaultPackageName
     }
 
     fun getPackageInfo(pm: PackageManager): PackageInfo? {
@@ -54,7 +56,7 @@ object GameChecker {
     }
 
     fun getAllPackageInfo(pm: PackageManager): Array<PackageInfo?> {
-        val packages = mode.packageNames
+        val packages = client.packageNames
         return Array(packages.size) {
             try {
                 pm.getPackageInfo(packages[it], 0)
