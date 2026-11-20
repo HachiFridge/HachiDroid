@@ -3,16 +3,33 @@ package dev.hachifridge.hachidroid.core
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ClientProfile
 
 object GameChecker {
-    /** Packages of the active [client]; pickers list exactly these. */
+    /** Packages of the active [profile]; pickers list exactly these. */
     val packageNames: Array<String>
-        get() = client.packageNames.toTypedArray()
+        get() = profile.packageNames.toTypedArray()
 
-    var client: Client = Client.TRACEN
+    var profile: ClientProfile = ClientProfile.TRACEN_GLB
         private set
 
+    val client: Client
+        get() = profile.client
+
     var currentPackageName: String? = null
+
+    /**
+     * Switches the active profile and resolves a target when the current one no longer belongs to
+     * it.
+     */
+    fun applyProfile(next: ClientProfile, pm: PackageManager? = null) {
+        val changed = next != profile
+        profile = next
+        val stillValid = currentPackageName?.let { it in next.packageNames } == true
+        if (pm != null && (changed || !stillValid)) {
+            init(pm)
+        }
+    }
 
     /**
      * Switches the active client and resolves a target when the current one no longer belongs to
@@ -22,24 +39,20 @@ object GameChecker {
      * screen, so refreshing the dashboard must not silently fall back to the client default.
      */
     fun applyClient(next: Client, pm: PackageManager? = null) {
-        val changed = next != client
-        client = next
-        val stillValid = currentPackageName?.let { it in next.packageNames } == true
-        if (pm != null && (changed || !stillValid)) {
-            init(pm)
-        }
+        val targetProfile = if (next == profile.client) profile else ClientProfile.defaultForClient(next)
+        applyProfile(targetProfile, pm)
     }
 
     fun init(pm: PackageManager) {
         // Defaults to whichever version is installed
-        for (packageName in client.packageNames) {
+        for (packageName in profile.packageNames) {
             currentPackageName = packageName
             if (getPackageInfo(pm) != null) {
                 return
             }
         }
-        // Otherwise, the client's default target
-        currentPackageName = client.defaultPackageName
+        // Otherwise, the profile's default target
+        currentPackageName = profile.defaultPackageName
     }
 
     fun getPackageInfo(pm: PackageManager): PackageInfo? {

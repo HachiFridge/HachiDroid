@@ -2,6 +2,7 @@ package dev.hachifridge.hachidroid.core
 
 import android.content.Context
 import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ClientProfile
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -53,12 +54,14 @@ object PrefKey {
     val DARINGTACT_REPO = stringPreferencesKey("daringtact_repo")
 
     /**
-     * Studio state is per client. One shared slot meant switching from Tracen to Astraea handed
-     * the new client the other one's split APKs and install choice, which is wrong twice over:
-     * those files are a different game, and Astraea cannot use most install methods.
+     * Studio state is per profile / preset (or per client).
      */
+    val PROFILE = stringPreferencesKey("client_profile")
+
+    fun fileUris(profile: ClientProfile) = profile.fileUrisKey
     fun fileUris(client: Client) = stringPreferencesKey("app_patcher_file_uris_${client.prefValue}")
 
+    fun installMethod(profile: ClientProfile) = profile.installMethodKey
     fun installMethod(client: Client) = intPreferencesKey("install_method_${client.prefValue}")
     val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
 

@@ -42,7 +42,9 @@ class LibrarySet(
      * listed with the libraries — the same unpack, import and remove workflow applies — but the
      * patch writes them somewhere else, which is the only thing [LibrarySet] does not decide.
      */
-    val protectedGameAssets: List<String> = emptyList()
+    val protectedGameAssets: List<String> = emptyList(),
+    /** Directory where the shared mod runtime binary is kept. Defaults to [directoryName]. */
+    val modDirectoryName: String = directoryName
 ) {
 
     /** Every name the folder may hold; used for import matching, not for readiness. */
@@ -130,7 +132,24 @@ class LibrarySet(
         shellProtected = shellProtected
     )
 
-    fun directory(context: Context): File = context.filesDir.resolve(directoryName)
+    fun directory(context: Context): File {
+        val dir = context.filesDir.resolve(directoryName)
+        // Migration for Global profile: if libs_glb does not exist or has no restored artifacts,
+        // copy any existing restored artifacts from the legacy "libs" folder.
+        if (directoryName == "libs_glb" && (!dir.exists() || dir.list().isNullOrEmpty())) {
+            val legacy = context.filesDir.resolve("libs")
+            if (legacy.isDirectory) {
+                dir.mkdirs()
+                listOf("libil2cpp.so", "global-metadata.dat", "build.stamp").forEach { name ->
+                    val file = legacy.resolve(name)
+                    if (file.isFile) file.copyTo(dir.resolve(name), overwrite = true)
+                }
+            }
+        }
+        return dir
+    }
+
+    fun modDirectory(context: Context): File = context.filesDir.resolve(modDirectoryName)
 
     /**
      * The game version the restored files were unpacked or imported from.
@@ -166,7 +185,8 @@ class LibrarySet(
      * game update replaces it. Touches the filesystem; call from a background dispatcher.
      */
     fun remove(context: Context, name: String): Boolean = runCatching {
-        val file = directory(context).resolve(name)
+        val targetDir = if (name == modLibrary) modDirectory(context) else directory(context)
+        val file = targetDir.resolve(name)
         !file.exists() || file.delete()
     }.getOrDefault(false)
 
@@ -177,9 +197,15 @@ class LibrarySet(
         targetStamp: String? = null
     ): Status {
         val dir = directory(context)
+        val modDir = modDirectory(context)
         return Status(
             libs = requiredLibraries(shellProtected).map { name ->
-                val file = dir.resolve(name)
+                val file = if (name == modLibrary) {
+                    val primary = modDir.resolve(name)
+                    if (primary.isFile && primary.length() > 0L) primary else dir.resolve(name)
+                } else {
+                    dir.resolve(name)
+                }
                 if (file.isFile && file.length() > 0L) {
                     LibStatus(name, present = true, sizeBytes = file.length(), is16KbCompatible = alignmentOf(name, file))
                 } else {
@@ -237,9 +263,11 @@ class LibrarySet(
         for (uri in uris) {
             val name = displayNameOf(context, uri)
             if (accepts(name, shellProtected)) {
+                val dest = if (name == modLibrary) modDirectory(context) else dir
+                dest.mkdirs()
                 val result = runCatching {
                     context.contentResolver.openInputStream(uri)
-                        ?.use { writeLibrary(dir.resolve(name), it, probePacked = isRestorable(name)) }
+                        ?.use { writeLibrary(dest.resolve(name), it, probePacked = isRestorable(name)) }
                 }.getOrNull() ?: WriteResult.FAILED
                 when (result) {
                     WriteResult.WRITTEN -> imported += name
@@ -287,8 +315,10 @@ class LibrarySet(
                     val entry = zip.nextEntry ?: break
                     val baseName = entry.name.substringAfterLast('/')
                     if (!entry.isDirectory && accept(baseName) && baseName !in found) {
+                        val dest = if (baseName == modLibrary) modDirectory(context) else dir
+                        dest.mkdirs()
                         when (writeLibrary(
-                            dir.resolve(baseName),
+                            dest.resolve(baseName),
                             zip,
                             probePacked = isRestorable(baseName)
                         )) {
@@ -397,13 +427,53 @@ class LibrarySet(
  * written into the base split — a restored image with the shipped metadata resolves null method
  * infos and dies in `il2cpp_init`.
  */
-val TracenLibraries = LibrarySet(
-    directoryName = "libs",
+/**
+ * Tracen Global native libraries: packed build needing restored libil2cpp and metadata.
+ */
+val TracenGlbLibraries = LibrarySet(
+    directoryName = "libs_glb",
     gameLibraries = emptyList(),
     protectedGameLibraries = listOf("libil2cpp.so"),
     modLibrary = "libmain-arm64-v8a.so",
-    protectedGameAssets = listOf("global-metadata.dat")
+    protectedGameAssets = listOf("global-metadata.dat"),
+    modDirectoryName = "libs"
 )
+
+/**
+ * Tracen Japan native libraries: plain build without packer.
+ */
+val TracenJpLibraries = LibrarySet(
+    directoryName = "libs_jp",
+    gameLibraries = emptyList(),
+    protectedGameLibraries = emptyList(),
+    modLibrary = "libmain-arm64-v8a.so",
+    modDirectoryName = "libs"
+)
+
+/**
+ * Tracen Traditional Chinese native libraries: plain build without packer.
+ */
+val TracenTwLibraries = LibrarySet(
+    directoryName = "libs_tw",
+    gameLibraries = emptyList(),
+    protectedGameLibraries = emptyList(),
+    modLibrary = "libmain-arm64-v8a.so",
+    modDirectoryName = "libs"
+)
+
+/**
+ * Tracen Korean native libraries: plain build without packer.
+ */
+val TracenKrLibraries = LibrarySet(
+    directoryName = "libs_kr",
+    gameLibraries = emptyList(),
+    protectedGameLibraries = emptyList(),
+    modLibrary = "libmain-arm64-v8a.so",
+    modDirectoryName = "libs"
+)
+
+/** Default / legacy Tracen native libraries set for backward compatibility. */
+val TracenLibraries = TracenGlbLibraries
 
 /**
  * Astraea's native libraries: the two protected game images (restored by Senbei or imported)
