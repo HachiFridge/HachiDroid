@@ -27,6 +27,7 @@ HachiDroid là ứng dụng Android mã nguồn mở giúp chèn và vá runtime
   - Bản Phồn thể (TW / HK)
   - Bản Hàn (KR)
   - Bản Quốc tế (EN) — được đóng gói/bảo vệ, do đó bản vá sẽ khôi phục `libil2cpp.so` và `global-metadata.dat` từ APK chia nhỏ của game trước
+  - **Hồ sơ / Cài đặt trước máy khách**: Giữ các tệp và thư viện đã khôi phục riêng biệt khi cài đặt nhiều phiên bản
 - **Mục tiêu vá linh hoạt**:
   - **Game đã cài đặt**: Trực tiếp nhận diện và vá client đã có trên thiết bị.
   - **Tệp APK**: Hỗ trợ chọn và vá tệp APK đơn, bộ split APK hoặc tệp XAPK.

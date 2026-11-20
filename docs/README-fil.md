@@ -27,6 +27,7 @@ Ang HachiDroid ay isang open-source na Android application na nag-i-inject at na
   - Traditional Chinese (TW / HK)
   - Korean (KR)
   - Global (EN) — naka-pack, kaya unang ibinabalik ng patch ang `libil2cpp.so` at `global-metadata.dat` mula sa split ng laro
+  - **Mga Profile / Preset ng Kliyente**: Pinapanatiling hiwalay ang mga file at na-restore na library kapag naka-install ang maraming edisyon
 - **Iba\'t Ibang Patch Target**:
   - **Naka-install na Laro**: Direktang tukuyin at i-patch ang client na nasa device na.
   - **Mga APK File**: Pumili at mag-patch ng standalone APK, split APK bundle, o XAPK file.

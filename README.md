@@ -29,6 +29,7 @@
   - Traditional Chinese (TW / HK)
   - Korean (KR)
   - Global (EN) — packed, so a patch restores its `libil2cpp.so` and `global-metadata.dat` from the game's splits first
+  - **Client Profiles / Presets**: Preserves files and restored libraries independently when multiple editions are installed
 - **Flexible Patch Targets**:
   - **Installed Game**: Directly inspect and patch the client already installed on your device.
   - **APK Files**: Select and patch standalone APKs, split APK bundles, or XAPK files.
