@@ -405,4 +405,15 @@ You can migrate manually instead: export the signing key from UmaPatcher-Edge\'s
 
     <string name="notification_channel_patching">Patching Progress</string>
     <string name="notification_channel_desc">Displays progress and status while patching game APKs</string>
+
+    <string name="preset_tracen_glb">UM:PD · Global (EN)</string>
+    <string name="preset_tracen_jp">UM:PD · Japan (JP)</string>
+    <string name="preset_tracen_tw">UM:PD · Traditional Chinese (TW)</string>
+    <string name="preset_tracen_kr">UM:PD · Korean (KR)</string>
+    <string name="preset_astraea">PC:RD · Japan (JP)</string>
+    <string name="preset_switch">Switch profile</string>
+    <string name="region_global">Global</string>
+    <string name="region_japan">Japan</string>
+    <string name="region_taiwan">Traditional Chinese</string>
+    <string name="region_korea">Korean</string>
 </resources>

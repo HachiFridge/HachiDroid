@@ -361,4 +361,15 @@
 
     <string name="notification_channel_patching">Прогресс патчинга</string>
     <string name="notification_channel_desc">Отображает прогресс и статус во время патчинга APK игры</string>
+
+    <string name="preset_tracen_glb">UM:PD · Глобальный (EN)</string>
+    <string name="preset_tracen_jp">UM:PD · Япония (JP)</string>
+    <string name="preset_tracen_tw">UM:PD · Традиционный китайский (TW)</string>
+    <string name="preset_tracen_kr">UM:PD · Корейский (KR)</string>
+    <string name="preset_astraea">PC:RD · Япония (JP)</string>
+    <string name="preset_switch">Сменить профиль</string>
+    <string name="region_global">Глобальный</string>
+    <string name="region_japan">Япония</string>
+    <string name="region_taiwan">Традиционный китайский</string>
+    <string name="region_korea">Корейский</string>
 </resources>

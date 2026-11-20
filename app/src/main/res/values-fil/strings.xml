@@ -361,4 +361,15 @@
 
     <string name="notification_channel_patching">Progreso ng Pag-patch</string>
     <string name="notification_channel_desc">Ipinapakita ang progreso at status habang nagpa-patch ng mga game APK</string>
+
+    <string name="preset_tracen_glb">UM:PD · Pandaigdig (EN)</string>
+    <string name="preset_tracen_jp">UM:PD · Hapon (JP)</string>
+    <string name="preset_tracen_tw">UM:PD · Tradisyonal na Tsino (TW)</string>
+    <string name="preset_tracen_kr">UM:PD · Koreano (KR)</string>
+    <string name="preset_astraea">PC:RD · Hapon (JP)</string>
+    <string name="preset_switch">Lumipat ng profile</string>
+    <string name="region_global">Pandaigdig</string>
+    <string name="region_japan">Hapon</string>
+    <string name="region_taiwan">Tradisyonal na Tsino</string>
+    <string name="region_korea">Koreano</string>
 </resources>

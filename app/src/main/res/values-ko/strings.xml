@@ -393,4 +393,15 @@
 
     <string name="notification_channel_patching">패치 진행 상황</string>
     <string name="notification_channel_desc">게임 APK 패치 진행률 및 상태를 표시합니다</string>
+
+    <string name="preset_tracen_glb">UM:PD · 글로벌 (EN)</string>
+    <string name="preset_tracen_jp">UM:PD · 일본 (JP)</string>
+    <string name="preset_tracen_tw">UM:PD · 번체 중국어 (TW)</string>
+    <string name="preset_tracen_kr">UM:PD · 한국 (KR)</string>
+    <string name="preset_astraea">PC:RD · 일본 (JP)</string>
+    <string name="preset_switch">프로필 전환</string>
+    <string name="region_global">글로벌</string>
+    <string name="region_japan">일본</string>
+    <string name="region_taiwan">번체 중국어</string>
+    <string name="region_korea">한국</string>
 </resources>

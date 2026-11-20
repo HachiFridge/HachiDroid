@@ -358,4 +358,15 @@
 
     <string name="notification_channel_patching">修补进度</string>
     <string name="notification_channel_desc">显示修补游戏 APK 时的进度与状态</string>
+
+    <string name="preset_tracen_glb">UM:PD · 国际版 (EN)</string>
+    <string name="preset_tracen_jp">UM:PD · 日服 (JP)</string>
+    <string name="preset_tracen_tw">UM:PD · 繁中版 (TW)</string>
+    <string name="preset_tracen_kr">UM:PD · 韩服 (KR)</string>
+    <string name="preset_astraea">PC:RD · 日服 (JP)</string>
+    <string name="preset_switch">切换配置</string>
+    <string name="region_global">国际服</string>
+    <string name="region_japan">日服</string>
+    <string name="region_taiwan">繁体中文服</string>
+    <string name="region_korea">韩服</string>
 </resources>

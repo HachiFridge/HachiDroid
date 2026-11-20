@@ -358,4 +358,15 @@
 
     <string name="notification_channel_patching">Tiến trình vá</string>
     <string name="notification_channel_desc">Hiển thị tiến trình và trạng thái khi vá APK trò chơi</string>
+
+    <string name="preset_tracen_glb">UM:PD · Quốc tế (EN)</string>
+    <string name="preset_tracen_jp">UM:PD · Nhật Bản (JP)</string>
+    <string name="preset_tracen_tw">UM:PD · Tiếng Trung phồn thể (TW)</string>
+    <string name="preset_tracen_kr">UM:PD · Hàn Quốc (KR)</string>
+    <string name="preset_astraea">PC:RD · Nhật Bản (JP)</string>
+    <string name="preset_switch">Chuyển đổi hồ sơ</string>
+    <string name="region_global">Quốc tế</string>
+    <string name="region_japan">Nhật Bản</string>
+    <string name="region_taiwan">Tiếng Trung phồn thể</string>
+    <string name="region_korea">Hàn Quốc</string>
 </resources>
