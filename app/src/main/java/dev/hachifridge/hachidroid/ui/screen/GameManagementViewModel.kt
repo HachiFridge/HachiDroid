@@ -6,8 +6,11 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hachifridge.hachidroid.core.GameChecker
-import dev.hachifridge.hachidroid.core.PatchMode
-import dev.hachifridge.hachidroid.core.AstraeaLibraries
+import dev.hachifridge.hachidroid.core.PrefKey
+import dev.hachifridge.hachidroid.core.dataStore
+import androidx.datastore.preferences.core.edit
+import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.AstraeaLibraries
 import dev.hachifridge.hachidroid.patcher.RootUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,12 +54,13 @@ class GameManagementViewModel : ViewModel() {
                 val (regionName, regionTag) = when (pkg.packageName) {
                     "jp.co.cygames.umamusume" -> "Japan" to "JP"
                     "com.komoe.kmumamusumegp" -> "Traditional Chinese" to "TW"
-                    "com.komoe.umamusumeofficial" -> "Global" to "EN"
+                    "com.komoe.umamusumeofficial" -> "Traditional Chinese" to "TW"
+                    "com.cygames.umamusume" -> "Global" to "EN"
                     "com.kakaogames.umamusume" -> "Korean" to "KR"
                     "jp.co.cygames.princessconnectredive" -> "Japan" to "JP"
-                    else -> when (GameChecker.mode) {
-                        PatchMode.TRACEN -> "Umamusume" to "Custom"
-                        PatchMode.ASTRAEA -> "Priconne" to "Custom"
+                    else -> when (GameChecker.client) {
+                        Client.TRACEN -> "Umamusume" to "Custom"
+                        Client.ASTRAEA -> "Priconne" to "Custom"
                     }
                 }
 
@@ -80,6 +84,11 @@ class GameManagementViewModel : ViewModel() {
 
     fun selectTarget(packageName: String, context: Context) {
         GameChecker.currentPackageName = packageName
+        // Remembered so the dashboard reopens on this release; Uma's two store builds share one
+        // client, and the first installed package would otherwise always win.
+        viewModelScope.launch {
+            context.dataStore.edit { it[PrefKey.TARGET_PACKAGE] = packageName }
+        }
         loadApps(context)
     }
 
@@ -87,8 +96,8 @@ class GameManagementViewModel : ViewModel() {
         val appInfo = packageInfo.applicationInfo ?: return false
         val sourceDir = appInfo.publicSourceDir ?: return false
         val apkDir = File(sourceDir).parentFile ?: return false
-        val marker = if (GameChecker.mode == PatchMode.ASTRAEA) {
-            AstraeaLibraries.MOD_LIBRARY
+        val marker = if (GameChecker.client == Client.ASTRAEA) {
+            AstraeaLibraries.modLibrary
         } else {
             "libmain_orig.so"
         }

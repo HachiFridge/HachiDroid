@@ -66,6 +66,8 @@ fun PatchLogViewer(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val appName = stringResource(R.string.app_name)
+    val copiedText = stringResource(R.string.patch_log_copied)
     var lines by remember(logFile) { mutableStateOf<List<String>?>(null) }
 
     LaunchedEffect(logFile) {
@@ -133,11 +135,11 @@ fun PatchLogViewer(
                             val text = lines.orEmpty().joinToString("\n")
                             context.getSystemService(ClipboardManager::class.java)
                                 ?.setPrimaryClip(
-                                    ClipData.newPlainText(context.getString(R.string.app_name), text)
+                                    ClipData.newPlainText(appName, text)
                                 )
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.patch_log_copied),
+                                copiedText,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }

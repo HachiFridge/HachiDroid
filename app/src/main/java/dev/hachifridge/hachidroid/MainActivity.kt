@@ -15,7 +15,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -23,7 +22,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -32,10 +30,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,7 +40,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -53,14 +48,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
-import androidx.navigation3.runtime.NavKey
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.map
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import dev.hachifridge.hachidroid.core.PatchMode
+import dev.hachifridge.hachidroid.client.Client
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.core.dataStore
 import androidx.datastore.core.DataStore
@@ -122,12 +116,12 @@ class MainActivity : ComponentActivity() {
             val dynamicColor by remember { dynamicColorFlow(dataStore) }
                 .collectAsState(initial = false)
 
-            // The mode drives the palette as well as the dashboard, so it is read at the root:
+            // The client drives the palette as well as the dashboard, so it is read at the root:
             // switching it in the hero card re-themes the whole app, not just the home screen.
-            val savedMode by remember { patchModeFlow(dataStore) }
-                .collectAsState(initial = PatchMode.TRACEN.prefValue)
+            val savedClient by remember { clientPrefFlow(dataStore) }
+                .collectAsState(initial = Client.TRACEN.prefValue)
 
-            HachiDroidTheme(dynamicColor = dynamicColor, mode = PatchMode.fromPref(savedMode)) {
+            HachiDroidTheme(dynamicColor = dynamicColor, client = Client.fromPref(savedClient)) {
                 MainContent(mainViewModel)
             }
         }
@@ -145,11 +139,11 @@ class MainActivity : ComponentActivity() {
         val isUpdateScheme = uri.scheme == "hachidroid" || uri.scheme == "umapatcher-edge"
         if (!isUpdateScheme || uri.host != "update-hachimi") return
 
-        // Switch to Tracen mode so the Hachimi update targets Umamusume rather than whatever
-        // mode was active previously (e.g. Astraea).
+        // Switch to the Tracen client so the Hachimi update targets Umamusume rather than
+        // whatever client was active previously (e.g. Astraea).
         lifecycleScope.launch {
-            dataStore.edit { it[PrefKey.PATCH_MODE] = PatchMode.TRACEN.prefValue }
-            GameChecker.applyMode(PatchMode.TRACEN, packageManager)
+            dataStore.edit { it[PrefKey.CLIENT] = Client.TRACEN.prefValue }
+            GameChecker.applyClient(Client.TRACEN, packageManager)
             mainViewModel.pendingUpdateDeepLink.value = true
         }
     }
@@ -178,9 +172,9 @@ class MainActivity : ComponentActivity() {
 private fun dynamicColorFlow(dataStore: DataStore<Preferences>): Flow<Boolean> =
     dataStore.data.map { prefs -> prefs[PrefKey.DYNAMIC_COLOR] ?: false }
 
-/** Raw preference value; parsing to [PatchMode] stays at the call site. */
-private fun patchModeFlow(dataStore: DataStore<Preferences>): Flow<String> =
-    dataStore.data.map { prefs -> prefs[PrefKey.PATCH_MODE] ?: PatchMode.TRACEN.prefValue }
+/** Raw preference value; parsing to [Client] stays at the call site. */
+private fun clientPrefFlow(dataStore: DataStore<Preferences>): Flow<String> =
+    dataStore.data.map { prefs -> prefs[PrefKey.CLIENT] ?: Client.TRACEN.prefValue }
 
 @Composable
 private fun MainContent(viewModel: MainViewModel = viewModel()) {

@@ -2,8 +2,6 @@ package dev.hachifridge.hachidroid.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -26,9 +24,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hachifridge.hachidroid.MainActivity
 import dev.hachifridge.hachidroid.MainViewModel
 import dev.hachifridge.hachidroid.R
-import dev.hachifridge.hachidroid.patcher.HachimiUninstallPatcher
+import dev.hachifridge.hachidroid.patcher.tracen.TracenUninstallPatcher
 import dev.hachifridge.hachidroid.shizuku.ShizukuState
-import dev.hachifridge.hachidroid.ui.component.BentoDashboardRow
+import dev.hachifridge.hachidroid.ui.component.client.ClientTilesRow
 import dev.hachifridge.hachidroid.ui.component.BottomBarScrollSpacer
 import dev.hachifridge.hachidroid.ui.component.GameHeroCard
 import dev.hachifridge.hachidroid.ui.component.SimpleOkCancelDialog
@@ -70,7 +68,7 @@ fun HomeScreen(
             onClose = { ok ->
                 showUninstallConfirm = false
                 if (ok) {
-                    PatcherLauncher.launch(navigator, HachimiUninstallPatcher())
+                    PatcherLauncher.launch(navigator, TracenUninstallPatcher())
                 }
             }
         ) {
@@ -127,8 +125,8 @@ fun HomeScreen(
             // 1. Dynamic Game Hero Canvas: Game identity, status telemetry, and launch/uninstall actions
             GameHeroCard(
                 navigator = navigator,
-                mode = viewModel.mode,
-                onModeChange = { viewModel.setMode(context, it) },
+                client = viewModel.client,
+                onClientChange = { viewModel.setClient(context, it) },
                 packageInfo = packageInfo,
                 pluginCount = plugins.size,
                 shizukuAvailable = ShizukuState.isAvailable.value,
@@ -137,18 +135,19 @@ fun HomeScreen(
                 onUninstallRequest = { showUninstallConfirm = true }
             )
 
-            // 2. Modern Patching Studio: segmented target source, smart method selector, and file drop-zone.
-            // The mode decides what the card offers: Astraea patches a Priconne split set, so root
-            // injection, the legacy installer and the installed-game target do not apply.
+            // 2. Modern Patching Studio: segmented target source, smart method selector, file
+            // drop-zone and the native-library gate. The client decides what the card offers:
+            // Astraea patches a Priconne split set, so root injection, the legacy installer and the
+            // installed-game target do not apply.
             PatchingStudioCard(
                 navigator = navigator,
-                mode = viewModel.mode,
+                client = viewModel.client,
                 homeViewModel = viewModel,
                 libraries = libraries
             )
 
-            // 3. Bento Dashboard Row: Mod source and plugin tiles (Tracen) or mod source and library tiles (Astraea).
-            BentoDashboardRow(viewModel = viewModel, mode = viewModel.mode, libraries = libraries)
+            // 3. Client tiles: where the mod comes from, plus Tracen's plugin list.
+            ClientTilesRow(viewModel = viewModel, client = viewModel.client, libraries = libraries)
 
             BottomBarScrollSpacer()
         }

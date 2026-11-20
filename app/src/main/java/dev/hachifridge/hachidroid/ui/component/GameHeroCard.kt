@@ -24,13 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,11 +61,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.hachifridge.hachidroid.BuildConfig
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
-import dev.hachifridge.hachidroid.core.PatchMode
-import dev.hachifridge.hachidroid.patcher.HachimiUninstallPatcher
+import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ShellDetection
 import dev.hachifridge.hachidroid.ui.navigation.Destination
 import dev.hachifridge.hachidroid.ui.navigation.Navigator
-import dev.hachifridge.hachidroid.ui.patcher.PatcherLauncher
 import dev.hachifridge.hachidroid.ui.theme.brand_success_dark
 import dev.hachifridge.hachidroid.ui.theme.brand_success_light
 import dev.hachifridge.hachidroid.utils.safeNavigate
@@ -76,8 +73,8 @@ import dev.hachifridge.hachidroid.utils.safeNavigate
 @Composable
 fun GameHeroCard(
     navigator: Navigator,
-    mode: PatchMode,
-    onModeChange: (PatchMode) -> Unit,
+    client: Client,
+    onClientChange: (Client) -> Unit,
     packageInfo: PackageInfo?,
     pluginCount: Int,
     shizukuAvailable: Boolean,
@@ -91,9 +88,9 @@ fun GameHeroCard(
     val successColor = if (isSystemInDarkTheme()) brand_success_dark else brand_success_light
     val errorColor = MaterialTheme.colorScheme.error
 
-    // The installed game's own label wins; the fallback follows the mode so a mode with the game
+    // The installed game's own label wins; the fallback follows the client so a client with the game
     // missing does not announce the other game's name.
-    val fallbackLabel = if (mode == PatchMode.ASTRAEA) "Princess Connect! Re:Dive" else "Umamusume: Pretty Derby"
+    val fallbackLabel = if (client == Client.ASTRAEA) "PC:RD" else "UM:PD"
     val appLabel = remember(packageInfo, fallbackLabel) {
         if (packageInfo != null) {
             try {
@@ -123,7 +120,8 @@ fun GameHeroCard(
         when (pkg) {
             "jp.co.cygames.umamusume" -> R.string.client_jp
             "com.komoe.kmumamusumegp" -> R.string.client_tw
-            "com.komoe.umamusumeofficial" -> R.string.client_glb
+            "com.komoe.umamusumeofficial" -> R.string.client_tw
+            "com.cygames.umamusume" -> R.string.client_glb
             "com.kakaogames.umamusume" -> R.string.client_kr
             "jp.co.cygames.princessconnectredive" -> R.string.client_jp
             else -> R.string.target_client
@@ -169,7 +167,7 @@ fun GameHeroCard(
                 Spacer(Modifier.weight(1f))
 
                 // Mode switches the whole dashboard identity, so it belongs in the card header.
-                ModeSelectorChip(mode = mode, onModeChange = onModeChange)
+                ClientSelectorChip(client = client, onClientChange = onClientChange)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -366,9 +364,12 @@ fun GameHeroCard(
                         )
                     }
 
-                    // Astraea has no stock to go back to: a patched Priconne is a rebuilt split set with
-                    // the CrackProof shell removed, and the only way back is a store reinstall.
-                    if (rootAvailable && mode != PatchMode.ASTRAEA) {
+                    // A packed build has no stock to go back to: a patched install is a rebuilt split
+                    // set with the shell removed, and the only way back is a store reinstall.
+                    if (rootAvailable &&
+                        !client.alwaysShellProtected &&
+                        !ShellDetection.isPackedPackage(GameChecker.currentPackageName)
+                    ) {
                         OutlinedButton(
                             onClick = onUninstallRequest,
                             shape = RoundedCornerShape(14.dp),
@@ -436,13 +437,13 @@ fun GameHeroCard(
 }
 
 /**
- * Compact mode switcher shown in the hero header.
+ * Compact client switcher shown in the hero header.
  *
  * A dropdown rather than a segmented control: two options fit in a chip, and the header already
  * carries the app name, so the lighter control keeps the row from competing for width.
  */
 @Composable
-private fun ModeSelectorChip(mode: PatchMode, onModeChange: (PatchMode) -> Unit) {
+private fun ClientSelectorChip(client: Client, onClientChange: (Client) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
 
     Box {
@@ -457,7 +458,7 @@ private fun ModeSelectorChip(mode: PatchMode, onModeChange: (PatchMode) -> Unit)
                 modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
             ) {
                 Text(
-                    text = stringResource(mode.labelRes),
+                    text = stringResource(client.labelRes),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -471,15 +472,15 @@ private fun ModeSelectorChip(mode: PatchMode, onModeChange: (PatchMode) -> Unit)
         }
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            PatchMode.entries.forEach { option ->
+            Client.entries.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(stringResource(option.labelRes)) },
                     onClick = {
                         expanded = false
-                        onModeChange(option)
+                        onClientChange(option)
                     },
                     trailingIcon = {
-                        if (option == mode) {
+                        if (option == client) {
                             Icon(
                                 imageVector = Icons.Outlined.Check,
                                 contentDescription = null,

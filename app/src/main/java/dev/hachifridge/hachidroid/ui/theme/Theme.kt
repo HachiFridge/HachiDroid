@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import dev.hachifridge.hachidroid.core.PatchMode
+import dev.hachifridge.hachidroid.client.Client
 
 private val DarkColorScheme = darkColorScheme(
     primary = md_theme_dark_primary,
@@ -107,10 +107,10 @@ fun HachiDroidTheme(
     // Dynamic color is opt-in via Settings; the brand palettes are the default.
     dynamicColor: Boolean = false,
     // Each game family keeps its own identity: honey for Tracen, Pecorine's blue for Astraea.
-    mode: PatchMode = PatchMode.TRACEN,
+    client: Client = Client.TRACEN,
     content: @Composable () -> Unit
 ) {
-    val astraea = mode == PatchMode.ASTRAEA
+    val astraea = client == Client.ASTRAEA
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -141,7 +141,7 @@ fun HachiDroidTheme(
 }
 
 // Astraea's identity: the same component roles, Pecorine's blue-and-gold instead of honey.
-// Only the mode decides between the two sets; everything downstream keeps reading MaterialTheme.
+// Only the client decides between the two sets; everything downstream keeps reading MaterialTheme.
 private val AstraeaDarkColorScheme = darkColorScheme(
     primary = astraea_dark_primary,
     onPrimary = astraea_dark_onPrimary,

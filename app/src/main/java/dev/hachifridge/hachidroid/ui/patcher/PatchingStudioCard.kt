@@ -10,8 +10,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,7 +32,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
@@ -50,9 +48,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -73,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -90,12 +89,12 @@ import dev.hachifridge.hachidroid.MainActivity
 import dev.hachifridge.hachidroid.MainViewModel
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
-import dev.hachifridge.hachidroid.core.PatchMode
+import dev.hachifridge.hachidroid.client.Client
 import dev.hachifridge.hachidroid.core.PrefKey
-import dev.hachifridge.hachidroid.core.AstraeaLibraries
+import dev.hachifridge.hachidroid.client.LibrarySet
 import dev.hachifridge.hachidroid.core.dataStore
 import dev.hachifridge.hachidroid.core.getPrefValue
-import dev.hachifridge.hachidroid.patcher.AppPatcher
+import dev.hachifridge.hachidroid.patcher.ClientPatcher
 import dev.hachifridge.hachidroid.shizuku.ShizukuState
 import dev.hachifridge.hachidroid.ui.component.SimpleOkCancelDialog
 import dev.hachifridge.hachidroid.ui.navigation.Navigator
@@ -123,10 +122,10 @@ enum class PatcherInstallMethod(
         fun fromId(id: Int): PatcherInstallMethod = entries.find { it.id == id } ?: NORMAL
 
         /**
-         * Astraea patches the split set rather than an installed game, so root injection and the
-         * legacy mount installer have nothing to operate on.
+         * Shell-protected clients patch the split set rather than an installed game, so root
+         * injection and the legacy mount installer have nothing to operate on.
          */
-        val ASTRAEA_METHODS = listOf(SAVE, NORMAL, SHIZUKU)
+        val SPLIT_METHODS = listOf(SAVE, NORMAL, SHIZUKU)
     }
 }
 
@@ -139,15 +138,19 @@ private enum class PatchTargetSource {
 @Composable
 fun PatchingStudioCard(
     navigator: Navigator,
-    mode: PatchMode,
+    client: Client,
     homeViewModel: HomeViewModel,
-    libraries: AstraeaLibraries.Status = AstraeaLibraries.Status.EMPTY
+    libraries: LibrarySet.Status = client.libraries.emptyStatus(
+        shellProtected = client.alwaysShellProtected || homeViewModel.patchProtected
+    )
 ) {
-    val isAstraea = mode == PatchMode.ASTRAEA
-    // Readiness is the two game libraries plus whatever the mod source produced. The mod is not a
-    // library-patching concern, but a patch without it starts the game and does nothing.
-    val modLibraryReady = libraries.isPresent(AstraeaLibraries.MOD_LIBRARY)
-    val astraeaLibrariesReady = libraries.protectedReady && modLibraryReady
+    // Protection belongs to the build, not to the client: Tracen covers both Uma releases and
+    // only the packed one needs the split-set flow.
+    val shellProtected = client.alwaysShellProtected || homeViewModel.patchProtected
+    // A packed build has to have its restored game files before anything is written. The mod
+    // runtime is deliberately not part of this: the patcher syncs it itself and gates on it after
+    // the download, so a missing runtime must not leave the button disabled.
+    val gameFilesReady = libraries.gameLibrariesReady
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val mainViewModel: MainViewModel = viewModel(context as MainActivity)
@@ -160,45 +163,63 @@ fun PatchingStudioCard(
     var showShizukuNotAvailableDialog by remember { mutableStateOf(false) }
     var staleFilesError by remember { mutableStateOf<String?>(null) }
 
-    // Target source: Installed Game vs External APK Files. Astraea always reads files: it has to
-    // replace the CrackProof shell, which only happens by rebuilding and reinstalling the splits.
-    var targetSource by rememberSaveable(mode) {
+    // A packed install cannot be patched in place: its shell is only removed by rebuilding and
+    // reinstalling the split set. This is about the copy on the device, while the split-set scene
+    // below follows the picked build, so clearing the picker leaves the studio in its plain shape
+    // instead of describing whichever release happens to be installed.
+    val canPatchInstalled = isGameInstalled && !homeViewModel.installedTargetProtected
+
+    // Target source: Installed Game vs External APK Files.
+    var targetSource by rememberSaveable(client) {
         mutableStateOf(
-            if (!isAstraea && isGameInstalled && isRootAvailable) PatchTargetSource.INSTALLED
+            if (!shellProtected && canPatchInstalled && isRootAvailable) PatchTargetSource.INSTALLED
             else PatchTargetSource.FILES
         )
     }
 
-    val methods = if (isAstraea) PatcherInstallMethod.ASTRAEA_METHODS else PatcherInstallMethod.entries
+    // Detection lands a moment after the picks are read, and a packed build cannot be patched in
+    // place, so the studio moves itself back to the split-set source when that happens.
+    LaunchedEffect(shellProtected, canPatchInstalled) {
+        if (shellProtected || !canPatchInstalled) targetSource = PatchTargetSource.FILES
+    }
 
-    val selectedMethodIndex = rememberSaveable(mode) { mutableIntStateOf(PatcherInstallMethod.NORMAL.id) }
+    val methods = if (shellProtected) PatcherInstallMethod.SPLIT_METHODS else PatcherInstallMethod.entries
+
+    val selectedMethodIndex = rememberSaveable(client) { mutableIntStateOf(PatcherInstallMethod.NORMAL.id) }
     val currentMethod = if (PatcherInstallMethod.fromId(selectedMethodIndex.intValue) in methods) {
         PatcherInstallMethod.fromId(selectedMethodIndex.intValue)
     } else {
         PatcherInstallMethod.NORMAL
     }
 
-    // Keyed on the mode: the two families patch different games, so a picked split belongs to
+    // Keyed on the client: the two families patch different games, so a picked split belongs to
     // exactly one of them.
-    var fileUris by rememberSaveable(mode) { mutableStateOf<Array<Uri>>(arrayOf()) }
+    var fileUris by rememberSaveable(client) { mutableStateOf<Array<Uri>>(arrayOf()) }
 
-    var stateLoaded by remember(mode) { mutableStateOf(false) }
-    var installMethodLoaded by rememberSaveable(mode) { mutableStateOf(false) }
+    var stateLoaded by remember(client) { mutableStateOf(false) }
+    var installMethodLoaded by rememberSaveable(client) { mutableStateOf(false) }
 
     val fileSelectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val newFileUris = uris.toTypedArray()
         for (uri in fileUris) releasePersistableUriPermission(context, uri)
         for (uri in newFileUris) tryTakePersistableUriPermission(context, uri)
         fileUris = newFileUris
-        coroutineScope.launch { saveFileUris(context, mode, newFileUris) }
+        coroutineScope.launch { saveFileUris(context, client, newFileUris) }
     }
 
-    // Restore this mode's persisted state. Keyed on mode, so switching families starts the new
-    // mode from its own picks instead of inheriting the previous one's split APKs.
-    LaunchedEffect(mode) {
+    // Libraries are part of the studio now, so its section owns the picker as well.
+    val libraryImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) homeViewModel.importLibraries(context, uris)
+    }
+
+    // Restore this client's persisted state. Keyed on client, so switching families starts the new
+    // client from its own picks instead of inheriting the previous one's split APKs.
+    LaunchedEffect(client) {
         if (!installMethodLoaded) {
-            val savedInstallMethod = (context.getPrefValue(PrefKey.installMethod(mode)) as Int?)
-                ?: takeLegacyInstallMethod(context, mode)
+            val savedInstallMethod = (context.getPrefValue(PrefKey.installMethod(client)) as Int?)
+                ?: takeLegacyInstallMethod(context, client)
             selectedMethodIndex.intValue = savedInstallMethod
                 ?.takeIf { PatcherInstallMethod.fromId(it) in methods }
                 ?: PatcherInstallMethod.NORMAL.id
@@ -206,11 +227,11 @@ fun PatchingStudioCard(
         }
 
         if (fileUris.isEmpty()) {
-            // No default value exists for a per-mode key, so an untouched mode reads back as
+            // No default value exists for a per-client key, so an untouched client reads back as
             // null rather than "". An empty string means the user cleared the picker, and must
             // not fall back to the legacy slot.
-            val storedFileUris = (context.getPrefValue(PrefKey.fileUris(mode)) as String?)
-                ?: takeLegacyFileUris(context, mode)
+            val storedFileUris = (context.getPrefValue(PrefKey.fileUris(client)) as String?)
+                ?: takeLegacyFileUris(context, client)
             val savedFileUris = storedFileUris
                 .split('\n')
                 .filter { it.isNotEmpty() }
@@ -224,7 +245,7 @@ fun PatchingStudioCard(
                 }
             }
             if (existingFileUris.size != savedFileUris.size) {
-                saveFileUris(context, mode, existingFileUris.toTypedArray())
+                saveFileUris(context, client, existingFileUris.toTypedArray())
             }
             if (existingFileUris.isNotEmpty()) {
                 fileUris = existingFileUris.toTypedArray()
@@ -233,18 +254,19 @@ fun PatchingStudioCard(
         stateLoaded = true
     }
 
-    // The Libraries tile unpacks from these, so the studio keeps it in step with its own picks.
-    LaunchedEffect(fileUris, mode) {
-        if (isAstraea) homeViewModel.updateAstraeaSplits(fileUris.toList())
+    // The studio's library section unpacks from these picks, and the build they belong to decides
+    // which libraries are required, so the view model is kept in step here.
+    LaunchedEffect(fileUris, client) {
+        homeViewModel.updatePatchSplits(context, fileUris.toList())
     }
 
-    // Persist install method for this mode only
-    LaunchedEffect(installMethodLoaded, mode) {
+    // Persist install method for this client only
+    LaunchedEffect(installMethodLoaded, client) {
         if (!installMethodLoaded) return@LaunchedEffect
         snapshotFlow { selectedMethodIndex.intValue }
             .drop(1)
             .collectLatest { methodId ->
-                saveInstallMethod(context, mode, methodId)
+                saveInstallMethod(context, client, methodId)
             }
     }
 
@@ -255,13 +277,13 @@ fun PatchingStudioCard(
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
                 PatcherLauncher.launch(
                     navigator,
-                    AppPatcher(
+                    ClientPatcher(
                         fileUris = fileUris,
                         install = true,
                         directInstall = false,
                         shizukuInstall = true,
                         legacyInstall = false,
-                        mode = mode
+                        client = client
 
                     )
                 )
@@ -275,12 +297,17 @@ fun PatchingStudioCard(
     val selectedFilesUnavailable = stringResource(R.string.selected_files_no_longer_available)
     val pendingUpdateDeepLink by mainViewModel.pendingUpdateDeepLink
 
-    LaunchedEffect(pendingUpdateDeepLink, mode) {
+    LaunchedEffect(pendingUpdateDeepLink, client) {
         if (!pendingUpdateDeepLink) return@LaunchedEffect
-        if (mode != PatchMode.TRACEN) return@LaunchedEffect
+        if (client != Client.TRACEN) return@LaunchedEffect
         mainViewModel.pendingUpdateDeepLink.value = false
 
-        val needsFiles = currentMethod != PatcherInstallMethod.DIRECT
+        // The saved method belongs to the build shape that was selected when it was chosen; a
+        // deep link can arrive after the picks turned out packed, so the sheet's filter applies
+        // here too (the patcher refuses the mismatched methods as a last line of defence).
+        val method = if (currentMethod in methods) currentMethod else PatcherInstallMethod.NORMAL
+
+        val needsFiles = method != PatcherInstallMethod.DIRECT
         if (needsFiles && fileUris.isEmpty()) {
             Toast.makeText(context, deepLinkMissingApks, Toast.LENGTH_LONG).show()
             return@LaunchedEffect
@@ -288,13 +315,13 @@ fun PatchingStudioCard(
 
         PatcherLauncher.launch(
             navigator,
-            AppPatcher(
+            ClientPatcher(
                 fileUris = if (needsFiles) fileUris else arrayOf(),
-                install = currentMethod == PatcherInstallMethod.NORMAL,
-                directInstall = currentMethod == PatcherInstallMethod.DIRECT,
-                shizukuInstall = currentMethod == PatcherInstallMethod.SHIZUKU,
-                legacyInstall = currentMethod == PatcherInstallMethod.LEGACY,
-                mode = mode
+                install = method == PatcherInstallMethod.NORMAL,
+                directInstall = method == PatcherInstallMethod.DIRECT,
+                shizukuInstall = method == PatcherInstallMethod.SHIZUKU,
+                legacyInstall = method == PatcherInstallMethod.LEGACY,
+                client = client
 
             )
         )
@@ -371,7 +398,7 @@ fun PatchingStudioCard(
                     methods.forEach { method ->
                         val isSelected = currentMethod == method
                         val isAvailable = when (method) {
-                            PatcherInstallMethod.DIRECT -> isRootAvailable && isGameInstalled
+                            PatcherInstallMethod.DIRECT -> isRootAvailable && canPatchInstalled
                             PatcherInstallMethod.SHIZUKU -> isShizukuAvailable
                             else -> true
                         }
@@ -526,9 +553,9 @@ fun PatchingStudioCard(
                 )
             }
 
-            // Astraea's entry point is always the split set, so both the source switch and the
-            // "installed game" state would only be dead UI.
-            if (!isAstraea) SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            // A shell-protected client's entry point is always the split set, so both the source
+            // switch and the "installed game" state would only be dead UI.
+            if (!shellProtected) SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
                     selected = targetSource == PatchTargetSource.INSTALLED,
                     onClick = {
@@ -538,7 +565,7 @@ fun PatchingStudioCard(
                         }
                     },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    enabled = isGameInstalled,
+                    enabled = canPatchInstalled,
                     icon = { SegmentedButtonDefaults.Icon(active = targetSource == PatchTargetSource.INSTALLED) }
                 ) {
                     Text(stringResource(R.string.target_source_installed))
@@ -641,7 +668,7 @@ fun PatchingStudioCard(
                                 )
                                 Text(
                                     text = stringResource(
-                                        if (isAstraea) R.string.astraea_drop_files_subtitle
+                                        if (shellProtected) R.string.shell_drop_files_subtitle
                                         else R.string.drop_files_subtitle
                                     ),
                                     style = MaterialTheme.typography.bodySmall,
@@ -653,7 +680,7 @@ fun PatchingStudioCard(
                                     onClick = {
                                         for (uri in fileUris) releasePersistableUriPermission(context, uri)
                                         fileUris = arrayOf()
-                                        coroutineScope.launch { saveFileUris(context, mode, arrayOf()) }
+                                        coroutineScope.launch { saveFileUris(context, client, arrayOf()) }
                                     }
                                 ) {
                                     Text(stringResource(R.string.clear_files), color = MaterialTheme.colorScheme.error)
@@ -693,8 +720,8 @@ fun PatchingStudioCard(
                 }
             }
 
-            if (isAstraea) {
-                // Priconne has no stock install to go back to: the shell the patch removes is
+            if (shellProtected) {
+                // A shell-protected install has no stock copy to go back to: the shell the patch removes is
                 // exactly what an uninstall would need. Say it here, where the decision is made.
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -702,7 +729,7 @@ fun PatchingStudioCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = stringResource(R.string.astraea_patch_is_one_way),
+                        text = stringResource(R.string.shell_patch_is_one_way),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier
@@ -712,42 +739,24 @@ fun PatchingStudioCard(
                 }
             }
 
-            // The tiles own the fix; this says the patch cannot start until they are done.
-            if (isAstraea && !astraeaLibrariesReady) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Folder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = stringResource(
-                                R.string.astraea_libraries_incomplete,
-                                libraries.libs.filterNot { it.present }
-                                    .joinToString(", ") { it.name }
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-            }
+            // Native libraries gate the patch itself, so they live here rather than in a tile.
+            LibraryGateSection(
+                libraries = libraries,
+                shellProtected = shellProtected,
+                splitsAvailable = homeViewModel.patchSplits.isNotEmpty(),
+                onDeviceUnpackAvailable = homeViewModel.onDeviceUnpackAvailable,
+                unpacking = homeViewModel.unpackingLibraries,
+                unpackError = homeViewModel.unpackError,
+                onUnpack = {
+                    homeViewModel.unpackLibrariesFromSplits(context, homeViewModel.patchSplits)
+                },
+                onImport = { libraryImportLauncher.launch(arrayOf("*/*")) },
+                onRemove = { name -> homeViewModel.removeLibrary(context, name) }
+            )
 
             // Primary Action Button
             val isButtonEnabled = when {
-                isAstraea -> fileUris.isNotEmpty() && astraeaLibrariesReady
+                shellProtected -> fileUris.isNotEmpty() && gameFilesReady
                 targetSource == PatchTargetSource.INSTALLED && currentMethod == PatcherInstallMethod.DIRECT -> isGameInstalled
                 else -> fileUris.isNotEmpty()
             }
@@ -760,7 +769,7 @@ fun PatchingStudioCard(
                         if (deadUris.isNotEmpty()) {
                             for (uri in deadUris) releasePersistableUriPermission(context, uri)
                             fileUris = aliveUris.toTypedArray()
-                            coroutineScope.launch { saveFileUris(context, mode, aliveUris.toTypedArray()) }
+                            coroutineScope.launch { saveFileUris(context, client, aliveUris.toTypedArray()) }
                             staleFilesError = selectedFilesUnavailable
                             return@Button
                         }
@@ -775,13 +784,13 @@ fun PatchingStudioCard(
                         if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                             PatcherLauncher.launch(
                                 navigator,
-                                AppPatcher(
+                                ClientPatcher(
                                     fileUris = fileUris,
                                     install = true,
                                     directInstall = false,
                                     shizukuInstall = true,
                                     legacyInstall = false,
-                                    mode = mode
+                                    client = client
 
                                 )
                             )
@@ -793,13 +802,13 @@ fun PatchingStudioCard(
                     } else {
                         PatcherLauncher.launch(
                             navigator,
-                            AppPatcher(
+                            ClientPatcher(
                                 fileUris = if (currentMethod == PatcherInstallMethod.DIRECT) arrayOf() else fileUris,
                                 install = currentMethod == PatcherInstallMethod.NORMAL,
                                 directInstall = currentMethod == PatcherInstallMethod.DIRECT,
                                 shizukuInstall = false,
                                 legacyInstall = currentMethod == PatcherInstallMethod.LEGACY,
-                                mode = mode
+                                client = client
 
                             )
                         )
@@ -821,6 +830,275 @@ fun PatchingStudioCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The native libraries a patch writes, with their readiness, inside the studio rather than in a
+ * separate tile: this is the last thing between the user and Start Patcher.
+ *
+ * Collapsed to a summary once everything is present, open by default while something is missing.
+ */
+@Composable
+private fun LibraryGateSection(
+    libraries: LibrarySet.Status,
+    shellProtected: Boolean,
+    splitsAvailable: Boolean,
+    onDeviceUnpackAvailable: Boolean,
+    unpacking: Boolean,
+    unpackError: String?,
+    onUnpack: () -> Unit,
+    onImport: () -> Unit,
+    onRemove: (String) -> Unit
+) {
+    var expanded by rememberSaveable { mutableStateOf(!libraries.isReady) }
+    val ready = libraries.isReady
+    // A ready summary would hide the cases that need attention, so the section opens itself.
+    LaunchedEffect(libraries.artifactsStale, libraries.hasMisaligned) {
+        if (libraries.artifactsStale || libraries.hasMisaligned) expanded = true
+    }
+    val accent = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val gameLibrariesReady = libraries.gameLibrariesReady
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Folder,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.libraries_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = if (ready) {
+                            stringResource(R.string.libraries_ready_count, libraries.presentCount, libraries.total)
+                        } else {
+                            stringResource(
+                                R.string.shell_libraries_incomplete,
+                                libraries.libs.filterNot { it.present }
+                                    .joinToString(", ") { it.name }
+                            )
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (ready) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (ready) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        text = "${libraries.presentCount}/${libraries.total}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (ready) MaterialTheme.colorScheme.onSecondaryContainer
+                        else MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.Outlined.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(if (expanded) 180f else 0f)
+                )
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    libraries.libs.forEach { lib ->
+                        StudioLibraryRow(lib, onRemove = { onRemove(lib.name) })
+                    }
+
+                    if (libraries.artifactsStale) {
+                        Text(
+                            text = stringResource(
+                                R.string.libraries_stale_warning,
+                                libraries.artifactsStamp.orEmpty(),
+                                libraries.targetStamp.orEmpty()
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    if (libraries.hasMisaligned) {
+                        Text(
+                            text = stringResource(R.string.libraries_misaligned_warning),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    if (unpacking) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Text(
+                                text = stringResource(R.string.libraries_unpacking),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Only a packed build has anything to restore; a plain one already ships its
+                    // libraries and offers import for the runtime alone.
+                    if (shellProtected) {
+                        if (onDeviceUnpackAvailable) {
+                            FilledTonalButton(
+                                onClick = onUnpack,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = !gameLibrariesReady && splitsAvailable && !unpacking
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (gameLibrariesReady) R.string.libraries_unpack_cached
+                                        else R.string.libraries_unpack_action
+                                    )
+                                )
+                            }
+                            Text(
+                                text = stringResource(
+                                    when {
+                                        gameLibrariesReady -> R.string.libraries_unpack_cached_hint
+                                        !splitsAvailable -> R.string.libraries_unpack_need_files
+                                        else -> R.string.libraries_unpack_hint
+                                    }
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.libraries_unpack_unavailable),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    FilledTonalButton(
+                        onClick = onImport,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.libraries_import_action))
+                    }
+
+                    if (shellProtected) {
+                        Text(
+                            text = stringResource(R.string.libraries_import_hint),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // Stays until the next attempt: a toast is gone before it can be read.
+                    unpackError?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One library in the checklist, with its size and a way to drop a stale copy. */
+@Composable
+private fun StudioLibraryRow(lib: LibrarySet.LibStatus, onRemove: () -> Unit) {
+    val context = LocalContext.current
+    val okColor = MaterialTheme.colorScheme.primary
+    val badColor = MaterialTheme.colorScheme.error
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (lib.present) Icons.Outlined.Check else Icons.Outlined.Warning,
+                contentDescription = null,
+                tint = if (lib.present) okColor else badColor,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = lib.name,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = if (lib.present) {
+                        Formatter.formatShortFileSize(context, lib.sizeBytes)
+                    } else {
+                        stringResource(R.string.libraries_missing_lib)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (lib.present) {
+                IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = stringResource(R.string.libraries_remove, lib.name),
+                        tint = badColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }
@@ -854,39 +1132,39 @@ private fun releasePersistableUriPermission(context: Context, uri: Uri) {
     }
 }
 
-private suspend fun saveFileUris(context: Context, mode: PatchMode, fileUris: Array<Uri>) {
+private suspend fun saveFileUris(context: Context, client: Client, fileUris: Array<Uri>) {
     context.dataStore.edit {
-        it[PrefKey.fileUris(mode)] = fileUris.joinToString("\n") { uri -> uri.toString() }
+        it[PrefKey.fileUris(client)] = fileUris.joinToString("\n") { uri -> uri.toString() }
     }
 }
 
-private suspend fun saveInstallMethod(context: Context, mode: PatchMode, installMethod: Int) {
+private suspend fun saveInstallMethod(context: Context, client: Client, installMethod: Int) {
     context.dataStore.edit {
-        it[PrefKey.installMethod(mode)] = installMethod
+        it[PrefKey.installMethod(client)] = installMethod
     }
 }
 
 /**
  * The single studio slot predates the second game family, so anything in it can only have been
- * picked for Tracen. Reading it once for that mode, and then clearing it, keeps an upgrade from
+ * picked for Tracen. Reading it once for that client, and then clearing it, keeps an upgrade from
  * losing the current selection while making sure Astraea never adopts a Umamusume split.
  */
-private suspend fun takeLegacyFileUris(context: Context, mode: PatchMode): String {
-    if (mode != PatchMode.TRACEN) return ""
+private suspend fun takeLegacyFileUris(context: Context, client: Client): String {
+    if (client != Client.TRACEN) return ""
     val legacy = context.getPrefValue(PrefKey.FILE_URIS) as String
     if (legacy.isEmpty()) return ""
     context.dataStore.edit { prefs ->
-        prefs[PrefKey.fileUris(mode)] = legacy
+        prefs[PrefKey.fileUris(client)] = legacy
         prefs[PrefKey.FILE_URIS] = ""
     }
     return legacy
 }
 
-private suspend fun takeLegacyInstallMethod(context: Context, mode: PatchMode): Int? {
-    if (mode != PatchMode.TRACEN) return null
+private suspend fun takeLegacyInstallMethod(context: Context, client: Client): Int? {
+    if (client != Client.TRACEN) return null
     val legacy = context.getPrefValue(PrefKey.INSTALL_METHOD) as Int
     context.dataStore.edit { prefs ->
-        prefs[PrefKey.installMethod(mode)] = legacy
+        prefs[PrefKey.installMethod(client)] = legacy
         prefs.remove(PrefKey.INSTALL_METHOD)
     }
     return legacy

@@ -11,7 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.topjohnwu.superuser.Shell
 import dev.hachifridge.hachidroid.core.AppUpdater
 import dev.hachifridge.hachidroid.core.GameChecker
-import dev.hachifridge.hachidroid.core.PatchMode
+import dev.hachifridge.hachidroid.client.Client
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.core.UpeMigration
 import dev.hachifridge.hachidroid.core.UpdateChecker
@@ -60,11 +60,11 @@ class MainViewModel : ViewModel() {
     fun init(context: Context) {
         GameChecker.init(context.packageManager)
 
-        // The persisted mode decides which packages everything below targets, so apply it before
-        // any patcher or install flow reads GameChecker.
+        // The persisted client decides which packages everything below targets, so apply it
+        // before any patcher or install flow reads GameChecker.
         viewModelScope.launch {
-            val mode = PatchMode.fromPref(context.getPrefValue(PrefKey.PATCH_MODE) as? String)
-            GameChecker.applyMode(mode, context.packageManager)
+            val client = Client.fromPref(context.getPrefValue(PrefKey.CLIENT) as? String)
+            GameChecker.applyClient(client, context.packageManager)
         }
 
         // Housekeeping walks the disk; init() runs from composition, so keep it off the main thread.

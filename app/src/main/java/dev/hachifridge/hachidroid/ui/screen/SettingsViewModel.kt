@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hachifridge.hachidroid.R
+import dev.hachifridge.hachidroid.client.Client
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.core.UpeMigration
 import dev.hachifridge.hachidroid.core.dataStore
@@ -23,8 +24,9 @@ import kotlinx.coroutines.withContext
 class SettingsViewModel : ViewModel() {
     var checkForUpdates by mutableStateOf(false)
     var hachimiLibsVersion by mutableStateOf("")
-    var hachimiRepo by mutableStateOf("")
-    var daringTactRepo by mutableStateOf("")
+    /** The client whose mod repo is shown: one field, because there is one mod source. */
+    var client by mutableStateOf(Client.TRACEN)
+    var modRepo by mutableStateOf("")
     var mergeApks by mutableStateOf(false)
     var exportInternalDataProvider by mutableStateOf(true)
     var useInternalFilesDir by mutableStateOf(false)
@@ -35,8 +37,8 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             checkForUpdates = context.getPrefValue(PrefKey.CHECK_FOR_UPDATES) as Boolean
             hachimiLibsVersion = context.getPrefValue(PrefKey.HACHIMI_LIBS_VERSION) as String
-            hachimiRepo = context.getPrefValue(PrefKey.HACHIMI_REPO) as String
-            daringTactRepo = context.getPrefValue(PrefKey.DARINGTACT_REPO) as String
+            client = Client.fromPref(context.getPrefValue(PrefKey.CLIENT) as? String)
+            modRepo = context.getPrefValue(client.modSource.repoKey) as String
             mergeApks = context.getPrefValue(PrefKey.MERGE_APKS) as Boolean
             exportInternalDataProvider = context.getPrefValue(PrefKey.EXPORT_INTERNAL_DATA_PROVIDER) as Boolean
             useInternalFilesDir = context.getPrefValue(PrefKey.USE_INTERNAL_FILES_DIR) as Boolean
@@ -80,17 +82,11 @@ class SettingsViewModel : ViewModel() {
         }
     }
 
-    fun updateHachimiRepo(context: Context, value: String) {
-        hachimiRepo = value
+    fun updateModRepo(context: Context, value: String) {
+        modRepo = value
+        val key = client.modSource.repoKey
         viewModelScope.launch {
-            context.dataStore.edit { it[PrefKey.HACHIMI_REPO] = value }
-        }
-    }
-
-    fun updateDaringTactRepo(context: Context, value: String) {
-        daringTactRepo = value
-        viewModelScope.launch {
-            context.dataStore.edit { it[PrefKey.DARINGTACT_REPO] = value }
+            context.dataStore.edit { it[key] = value }
         }
     }
 

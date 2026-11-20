@@ -852,6 +852,8 @@ private fun PulsingDot() {
 private fun RunLogCard(log: List<String>) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    val appName = stringResource(R.string.app_name)
+    val copiedText = stringResource(R.string.patch_log_copied)
     // Recomputed on each pass while expanded: the log grows while the screen is open.
     val logText = log.joinToString("\n")
 
@@ -906,11 +908,11 @@ private fun RunLogCard(log: List<String>) {
                     onClick = {
                         context.getSystemService(ClipboardManager::class.java)
                             ?.setPrimaryClip(
-                                ClipData.newPlainText(context.getString(R.string.app_name), logText)
+                                ClipData.newPlainText(appName, logText)
                             )
                         Toast.makeText(
                             context,
-                            context.getString(R.string.patch_log_copied),
+                            copiedText,
                             Toast.LENGTH_SHORT
                         ).show()
                     }

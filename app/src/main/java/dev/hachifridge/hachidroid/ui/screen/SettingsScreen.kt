@@ -97,19 +97,16 @@ fun SettingsScreen(
                     value = viewModel.checkForUpdates,
                     onCheckedChange = { viewModel.updateCheckForUpdates(context, it) }
                 )
+                // One repo field for the one mod source; which runtime it feeds follows the
+                // active client, not a second setting.
                 StringOption(
-                    title = stringResource(R.string.hachimi_repo),
-                    value = viewModel.hachimiRepo,
-                    placeholder = "Tenshou170/Hachimi-Edge",
-                    onValueChange = { viewModel.updateHachimiRepo(context, it) }
-                )
-                // Astraea's mod is a different runtime from Hachimi, so it has its own source
-                // rather than one field that would mean two things at once.
-                StringOption(
-                    title = stringResource(R.string.daringtact_repo),
-                    value = viewModel.daringTactRepo,
-                    placeholder = "HachiFridge/DaringTact",
-                    onValueChange = { viewModel.updateDaringTactRepo(context, it) },
+                    title = stringResource(
+                        R.string.mod_repo,
+                        stringResource(viewModel.client.labelRes)
+                    ),
+                    value = viewModel.modRepo,
+                    placeholder = "owner/repo",
+                    onValueChange = { viewModel.updateModRepo(context, it) },
                     showDivider = false
                 )
             }

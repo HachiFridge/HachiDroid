@@ -61,8 +61,9 @@ import dev.hachifridge.hachidroid.MainActivity
 import dev.hachifridge.hachidroid.MainViewModel
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
-import dev.hachifridge.hachidroid.core.PatchMode
-import dev.hachifridge.hachidroid.patcher.HachimiUninstallPatcher
+import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ShellDetection
+import dev.hachifridge.hachidroid.patcher.tracen.TracenUninstallPatcher
 import dev.hachifridge.hachidroid.ui.component.BackButton
 import dev.hachifridge.hachidroid.ui.component.BottomBarScrollSpacer
 import dev.hachifridge.hachidroid.ui.component.SimpleOkCancelDialog
@@ -77,7 +78,7 @@ import dev.hachifridge.hachidroid.utils.safeNavigate
 /**
  * Picks which installed client HachiDroid targets.
  *
- * Everything here is named for the active mode: the two families have different clients, different
+ * Everything here is named for the active client: the two families ship different packages, different
  * engines and different uninstall rules, so an Umamusume-shaped screen would be lying to a Priconne
  * user about what it is showing.
  */
@@ -92,7 +93,7 @@ fun GameManagementScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val mainViewModel: MainViewModel = viewModel(context as MainActivity)
     val isRootAvailable = mainViewModel.isRooted.value
-    val isAstraea = GameChecker.mode == PatchMode.ASTRAEA
+    val isAstraea = GameChecker.client == Client.ASTRAEA
 
     var uninstallTargetPackage by remember { mutableStateOf<String?>(null) }
 
@@ -110,7 +111,7 @@ fun GameManagementScreen(
                 uninstallTargetPackage = null
                 if (ok && target != null) {
                     GameChecker.currentPackageName = target
-                    PatcherLauncher.launch(navigator, HachimiUninstallPatcher())
+                    PatcherLauncher.launch(navigator, TracenUninstallPatcher())
                 }
             }
         ) {
@@ -118,7 +119,7 @@ fun GameManagementScreen(
         }
     }
 
-    // The game, its region list and its mod engine all come from the mode the user is in.
+    // The game, its region list and its mod engine all come from the active client.
     val gameName = stringResource(
         if (isAstraea) R.string.game_family_astraea else R.string.game_family_tracen
     )
@@ -450,9 +451,13 @@ private fun GameClientManagementCard(
                     Text(stringResource(R.string.launch_game))
                 }
 
-                // Astraea has nothing to uninstall back to: the patched install replaced the CrackProof
-                // shell, so there is nothing to put back.
-                if (isRootAvailable && client.isPatched && GameChecker.mode != PatchMode.ASTRAEA) {
+                // A packed build has nothing to uninstall back to: the patch replaced the packer's
+                // Application, so there is no stock copy to put back.
+                if (isRootAvailable &&
+                    client.isPatched &&
+                    !GameChecker.client.alwaysShellProtected &&
+                    !ShellDetection.isPackedPackage(client.packageName)
+                ) {
                     OutlinedButton(
                         onClick = onUninstall,
                         shape = RoundedCornerShape(12.dp),
