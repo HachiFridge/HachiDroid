@@ -1,5 +1,6 @@
 package dev.hachifridge.hachidroid.patcher
 
+import dev.hachifridge.hachidroid.patcher.astraea.AstraeaApkPatcher
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertArrayEquals
@@ -40,16 +41,16 @@ class AstraeaApkPatcherTest {
     }
 
     @Test
-    fun crackProofStubsAreRecognisedByIdShape() {
-        assertTrue(AstraeaApkPatcher.isCrackProofStub("lib__1b40__.so"))
-        assertTrue(AstraeaApkPatcher.isCrackProofStub("lib__abcdef0123456789__.so"))
+    fun packerStubsAreRecognisedByIdShape() {
+        assertTrue(AstraeaApkPatcher.isPackerStub("lib__1b40__.so"))
+        assertTrue(AstraeaApkPatcher.isPackerStub("lib__abcdef0123456789__.so"))
 
         // The libraries a patched install needs must never be treated as stubs.
         AstraeaApkPatcher.REQUIRED_LIBS.forEach { name ->
-            assertFalse(name, AstraeaApkPatcher.isCrackProofStub(name))
+            assertFalse(name, AstraeaApkPatcher.isPackerStub(name))
         }
-        assertFalse(AstraeaApkPatcher.isCrackProofStub("libmain.so"))
-        assertFalse(AstraeaApkPatcher.isCrackProofStub("lib__stub.so"))
+        assertFalse(AstraeaApkPatcher.isPackerStub("libmain.so"))
+        assertFalse(AstraeaApkPatcher.isPackerStub("lib__stub.so"))
     }
 
     @Test
@@ -65,7 +66,7 @@ class AstraeaApkPatcherTest {
         configDir.touch("lib/arm64-v8a/lib__1b40__.so")
 
         val logs = mutableListOf<String>()
-        val patched = AstraeaApkPatcher.patchConfigSplit(configDir, libsDir) { logs += it }
+        val patched = AstraeaApkPatcher.patchConfigSplit(configDir, libsDir, emptyList()) { logs += it }
 
         assertTrue(logs.joinToString("\n"), patched)
         assertFalse(configDir.resolve("lib/arm64-v8a/lib__1b40__.so").exists())
@@ -75,6 +76,27 @@ class AstraeaApkPatcherTest {
             assertTrue("$name missing", written.isFile)
             assertArrayEquals(bytes, written.readBytes())
         }
+    }
+
+    @Test
+    fun configPatchWritesPluginsUnderTheLoaderPrefix() {
+        val libsDir = tempDir()
+        val configDir = tempDir()
+        configDir.touch("lib/arm64-v8a/libil2cpp.so")
+        libsDir.touch("libil2cpp.so", byteArrayOf(1))
+        libsDir.touch("libnative.so", byteArrayOf(2))
+        libsDir.touch("libdaringtact.so", byteArrayOf(3))
+
+        val plugin = libsDir.touch("libspeed.so", byteArrayOf(9, 9))
+        val logs = mutableListOf<String>()
+        val patched = AstraeaApkPatcher.patchConfigSplit(
+            configDir,
+            libsDir,
+            listOf("libdaringtact_speed.so" to plugin)
+        ) { logs += it }
+
+        assertTrue(logs.joinToString("\n"), patched)
+        assertArrayEquals(byteArrayOf(9, 9), configDir.resolve("lib/arm64-v8a/libdaringtact_speed.so").readBytes())
     }
 
     @Test
@@ -88,7 +110,7 @@ class AstraeaApkPatcherTest {
         // libdaringtact.so deliberately absent
 
         val logs = mutableListOf<String>()
-        val patched = AstraeaApkPatcher.patchConfigSplit(configDir, libsDir) { logs += it }
+        val patched = AstraeaApkPatcher.patchConfigSplit(configDir, libsDir, emptyList()) { logs += it }
 
         assertFalse(patched)
         assertTrue(logs.any { it.contains("libdaringtact.so") })
@@ -105,7 +127,7 @@ class AstraeaApkPatcherTest {
         libsDir.resolve("libnative.so").writeBytes(ByteArray(0))
 
         val logs = mutableListOf<String>()
-        val patched = AstraeaApkPatcher.patchConfigSplit(configDir, libsDir) { logs += it }
+        val patched = AstraeaApkPatcher.patchConfigSplit(configDir, libsDir, emptyList()) { logs += it }
 
         assertFalse(patched)
         assertEquals(1, logs.count { it == "Missing library: libnative.so" })

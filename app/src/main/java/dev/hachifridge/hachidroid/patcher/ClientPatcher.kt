@@ -13,24 +13,18 @@ import android.os.StatFs
 import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.text.format.Formatter
-import android.util.Log
-import androidx.datastore.preferences.core.edit
 import dev.hachifridge.hachidroid.BuildConfig
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
-import dev.hachifridge.hachidroid.core.GitHubReleases
-import dev.hachifridge.hachidroid.core.HachimiSource
-import dev.hachifridge.hachidroid.core.PatchMode
+import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ShellDetection
 import dev.hachifridge.hachidroid.core.PrefKey
-import dev.hachifridge.hachidroid.core.AstraeaLibraries
-import dev.hachifridge.hachidroid.core.HachimiPluginManager
-import dev.hachifridge.hachidroid.core.dataStore
 import dev.hachifridge.hachidroid.core.getPrefValue
+import dev.hachifridge.hachidroid.patcher.astraea.AstraeaApkPatcher
+import dev.hachifridge.hachidroid.patcher.tracen.GlbApkPatcher
+import dev.hachifridge.hachidroid.patcher.tracen.HachimiExtensionsPatcher
 import dev.hachifridge.hachidroid.shizuku.ShizukuInstaller
 import dev.hachifridge.hachidroid.shizuku.ShizukuState
-import dev.hachifridge.hachidroid.utils.bytesToHex
-import dev.hachifridge.hachidroid.utils.downloadFileAndDigestSHA256
-import dev.hachifridge.hachidroid.utils.fetchJson
 import dev.hachifridge.hachidroid.utils.ksFile
 import dev.hachifridge.hachidroid.utils.workDir
 import dev.hachifridge.hachidroid.zip.ZipExtractor
@@ -46,23 +40,13 @@ import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.CompressionMethod
 import net.lingala.zip4j.progress.ProgressMonitor
 import java.io.File
-import java.io.IOException
-import java.net.URL
 import java.util.Locale
 
-private const val MOD_ARM64_LIB_NAME = "libmain-arm64-v8a.so"
 private const val APK_ARM64_LIB_DIR = "lib/arm64-v8a"
 private const val APK_ARM64_LIB_PATH = "$APK_ARM64_LIB_DIR/libmain.so"
 private const val APK_ORIG_ARM64_LIB_PATH = "$APK_ARM64_LIB_DIR/libmain_orig.so"
 
 internal const val LEGACY_MOUNT_SCRIPT_DIR = "/data/adb/umapatcher-edge"
-
-private val Context.libsDir: File
-    get() = filesDir.resolve("libs")
-
-// The Mod Source sheet can fetch this file ahead of a run, so both sides resolve it the same way.
-private val Context.hachimiModLib: File
-    get() = HachimiSource.target(this)
 
 private val Context.apkExtractDir: File
     get() = workDir.resolve("apk_extract")
@@ -70,16 +54,35 @@ private val Context.apkExtractDir: File
 private val Context.xapkExtractDir: File
     get() = workDir.resolve("xapk_extract")
 
-class AppPatcher(
+class ClientPatcher(
     private val fileUris: Array<Uri>,
     private val install: Boolean,
     private val directInstall: Boolean,
     private val shizukuInstall: Boolean,
     private val legacyInstall: Boolean = false,
-    /** Which game family this run patches. Read once: the mode cannot change mid-run. */
-    private val mode: PatchMode = GameChecker.mode
-): Patcher() {
-    private val isAstraea: Boolean get() = mode == PatchMode.ASTRAEA
+    /** Which client this run patches. Read once: the client cannot change mid-run. */
+    private val client: Client = GameChecker.client
+) : Patcher() {
+    /**
+     * Whether this run patches a packer-protected build. UM:PD's two releases differ here while being
+     * one client, so it is decided from the picked files (or the installed package, for a direct
+     * install) instead of from [client] alone.
+     */
+    private var shellProtected = false
+
+    /** Version of the build being patched, when its manifest could be read. */
+    private var targetStamp: String? = null
+
+    /** Non-null when this run has to remove a native packer before the game can start. */
+    private val shellPatcher: ShellSplitPatcher?
+        get() = if (!shellProtected) null else when (client) {
+            Client.ASTRAEA -> AstraeaApkPatcher
+            Client.TRACEN -> GlbApkPatcher
+        }
+
+    /** The mod runtime this client patches in, wherever its source put it. */
+    private fun modLib(context: Context): File = client.modSource.target(context)
+
     override suspend fun run(context: Context): Boolean {
         val startedAt = SystemClock.elapsedRealtime()
         log(
@@ -87,32 +90,45 @@ class AppPatcher(
                 " build · Android " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")"
         )
         try {
+            val probe = ShellDetection.inspect(context, fileUris.toList())
+            targetStamp = probe.versionStamp
+            shellProtected = client.alwaysShellProtected ||
+                probe.protected ||
+                // The installed copy stands in only for a run with no picks (a direct install);
+                // it must not decide for the files the user did pick.
+                ShellDetection.installedTargetIsPacked(fileUris.isNotEmpty(), GameChecker.currentPackageName)
+            log("· build: " + (if (shellProtected) "packer-protected" else "plain"))
+
             if (directInstall && !isDirectInstallAllowed(context))
                 return false
 
             if (!directInstall && fileUris.isNotEmpty() && !checkStorageSpace(context))
                 return false
 
-            if (isAstraea) {
-                // Astraea never touches an installed game: the CrackProof shell has to be replaced,
-                // which means rebuilding and reinstalling the split set. Root injection has no path
-                // here, and the Hachimi sync would download a runtime Priconne cannot load.
+            if (shellProtected) {
+                // A packer-owned build can only be patched by rebuilding and reinstalling the
+                // split set: root injection has nothing to inject into until the shell is gone.
                 if (directInstall) {
-                    log(context.getString(R.string.astraea_no_direct_install))
+                    log(context.getString(R.string.shell_no_direct_install))
                     return false
                 }
-                log(context.getString(R.string.astraea_install_replaces_store_copy))
+                // The legacy path merges the rebuilt set and mounts it over the store copy, which
+                // a shell-protected build has no stock Application to come back from. The studio
+                // already hides the method; a deep link or a stale pick can still reach here.
+                if (legacyInstall) {
+                    log(context.getString(R.string.shell_no_legacy_install))
+                    return false
+                }
+                log(context.getString(R.string.shell_install_replaces_store_copy))
 
-                val missing = missingAstraeaLibs(context)
-                if (missing.isNotEmpty()) {
-                    log(
-                        context.getString(R.string.astraea_libraries_incomplete)
-                            .format(missing.joinToString(", "))
-                    )
-                    return false
-                }
+                // The mod runtime is what makes a protected build run at all, so it is synced
+                // before the checklist: a missing one must gate the run like any other library.
+                val libVer = timed("sync mod library") { syncModLibrary(context) } ?: return false
+                log(context.getString(R.string.using_app_lib_ver).format(libVer))
+
+                if (!gateLibraries(context)) return false
             } else {
-                val libVer = timed("sync mod library") { syncHachimiModLib(context) } ?: return false
+                val libVer = timed("sync mod library") { syncModLibrary(context) } ?: return false
                 log(context.getString(R.string.using_app_lib_ver).format(libVer))
 
                 if (directInstall)
@@ -190,7 +206,7 @@ class AppPatcher(
         task = context.getString(R.string.installing)
         progress = -1f
 
-        val hachimiModLib = context.hachimiModLib
+        val hachimiModLib = modLib(context)
 
         val packageInfo = GameChecker.getPackageInfo(context.packageManager) ?: return false
         RootUtils.killPackage(packageInfo.packageName)
@@ -207,7 +223,7 @@ class AppPatcher(
         val installed = timed("install mod library") { installHachimiModLib(hachimiModLib, arm64LibDir) }
         if (!installed) return false
 
-        timed("install plugins") { installHachimiPlugins(context, arm64LibDir, isDirectInstall = true) }
+        timed("install plugins") { installPlugins(context, arm64LibDir, isDirectInstall = true) }
         timed("internal files marker") { syncHachimiInternalFilesMarker(context, packageInfo) }
 
         return true
@@ -255,6 +271,7 @@ class AppPatcher(
 
         try {
             val apkFiles = extractDir.listFiles { _, name -> name.endsWith(".apk") } ?: return false
+            if (!classifyFromFiles(context, apkFiles)) return false
             if (!patchSplitApks(context, apkFiles))
                 return false
 
@@ -286,6 +303,7 @@ class AppPatcher(
 
     private suspend fun runFullApk(context: Context, zip: ZipExtractor): Boolean {
         try {
+            if (!classifyFromFiles(context, arrayOf(zip.file))) return false
             if (!patchApk(context, zip))
                 return false
 
@@ -321,6 +339,7 @@ class AppPatcher(
         log(context.getString(R.string.patching_as_split_apks))
         val files = timed("copy input") { copyInputFiles(context, ".apk") } ?: return false
         try {
+            if (!classifyFromFiles(context, files)) return false
             if (!patchSplitApks(context, files))
                 return false
 
@@ -474,7 +493,12 @@ class AppPatcher(
             .toSet() + setOf(APK_ORIG_ARM64_LIB_PATH) +
             // The libraries the patch writes are new entries, so the source archive says nothing
             // about them; they must still land stored for the 16 KB alignment to hold.
-            (if (isAstraea) AstraeaApkPatcher.LIB_ARCHIVE_PATHS.toSet() else emptySet())
+            (shellPatcher?.let { patcher ->
+                patcher.archivePaths.toSet() +
+                    client.plugins.enabledPluginFiles(context)
+                        .map { patcher.archivePath(client.plugins.prefixedName(it.name)) }
+                        .toSet()
+            } ?: emptySet<String>())
 
         val file = zip.file
         val filename = file.name
@@ -492,12 +516,19 @@ class AppPatcher(
         task = context.getString(R.string.patching)
         progress = -1f
 
-        // Astraea shares everything around the patch itself (extract, rebuild, 16 KB alignment,
-        // signing, install) and nothing inside it, so the two paths split here and rejoin at
-        // rebuildAndSignApk.
-        if (isAstraea) {
-            if (!patchAstraeaSplit(context, extractDir, filename, processedSplits)) return false
+        // A packer-protected client shares everything around the patch (extract, rebuild, 16 KB
+        // alignment, signing, install) and nothing inside it, so the paths split here and rejoin
+        // at rebuildAndSignApk.
+        shellPatcher?.let { patcher ->
+            if (!patchShellSplit(patcher, context, extractDir, filename, processedSplits)) return false
             return rebuildAndSignApk(context, filename, file, doNotCompress, extractDir)
+        }
+
+        // A stub here means the build is packed after all. Writing a Hachimi loader beside an
+        // encrypted library would install and then die at startup, with nothing in the log.
+        if (ShellDetection.hasPackerStub(extractDir)) {
+            log(context.getString(R.string.shell_build_needs_split_patch))
+            return false
         }
 
         val arm64Lib = extractDir.resolve(APK_ARM64_LIB_PATH)
@@ -553,11 +584,11 @@ class AppPatcher(
                 patchArchLibs(
                     splitType = SplitApkType.CONFIG_ARM64,
                     lib = arm64Lib,
-                    modLib = context.hachimiModLib,
+                    modLib = modLib(context),
                     origLibPath = APK_ORIG_ARM64_LIB_PATH
                 )
             } || return false
-            installHachimiPlugins(context, arm64Lib.parentFile!!)
+            installPlugins(context, arm64Lib.parentFile!!)
         }
 
         if (classesDex.exists()) {
@@ -658,18 +689,19 @@ class AppPatcher(
     }
 
     /**
-     * Applies the Priconne patch to whichever part of the app this APK holds. A merged APK carries
-     * both payloads and gets both in one pass; in a split set the base and the arm64 config split
-     * each arrive separately.
+     * Applies a shell-protected client's patch to whichever part of the app this APK holds. A
+     * merged APK carries both payloads and gets both in one pass; in a split set the base and the
+     * arm64 config split each arrive separately.
      */
-    private suspend fun patchAstraeaSplit(
+    private suspend fun patchShellSplit(
+        patcher: ShellSplitPatcher,
         context: Context,
         extractDir: File,
         filename: String,
         processedSplits: MutableMap<SplitApkType, Boolean>?
     ): Boolean {
-        val isBase = AstraeaApkPatcher.isBaseSplit(extractDir)
-        val isConfig = AstraeaApkPatcher.isConfigSplit(extractDir)
+        val isBase = patcher.isBaseSplit(extractDir)
+        val isConfig = patcher.isConfigSplit(extractDir)
 
         if (!isBase && !isConfig) {
             log(context.getString(R.string.invalid_apk_file_name).format(filename))
@@ -693,23 +725,33 @@ class AppPatcher(
             val applicationDex = try {
                 context.assets.open(HachimiExtensionsPatcher.DEX_ASSET_NAME).use { it.readBytes() }
             } catch (ex: Exception) {
-                log(context.getString(R.string.astraea_assets_missing))
+                log(context.getString(R.string.shell_assets_missing))
                 logException(ex)
                 return false
             }
 
+            val libsDir = client.libraries.directory(context)
             val patched = timed("patch manifest", filename) {
-                AstraeaApkPatcher.patchBaseSplit(extractDir, applicationDex) { line -> log(line) }
+                patcher.patchBaseSplit(extractDir, libsDir, applicationDex) { line -> log(line) }
             }
             if (!patched) return false
+
+            // The base split owns the application entry point, so the Hachimi extensions that
+            // live there (internal-files marker, DocumentsProvider) belong in the same pass.
+            // Priconne runs DaringTact instead of Hachimi, so this stays Tracen-only.
+            if (client == Client.TRACEN) {
+                timed("patch extensions", filename) { patchHachimiExtensions(context, extractDir) }
+            }
         }
 
         if (isConfig) {
             if (!markSplit(SplitApkType.CONFIG_ARM64)) return false
 
-            val libsDir = AstraeaLibraries.directory(context)
+            val libsDir = client.libraries.directory(context)
+            val plugins = client.plugins.enabledPluginFiles(context)
+                .map { client.plugins.prefixedName(it.name) to it }
             val patched = timed("patch libraries", filename) {
-                AstraeaApkPatcher.patchConfigSplit(extractDir, libsDir) { line -> log(line) }
+                patcher.patchConfigSplit(extractDir, libsDir, plugins) { line -> log(line) }
             }
             if (!patched) return false
         }
@@ -717,10 +759,55 @@ class AppPatcher(
         return true
     }
 
-    /** Libraries the run needs but the user has not imported yet. */
-    private fun missingAstraeaLibs(context: Context): List<String> {
-        val dir = AstraeaLibraries.directory(context)
-        return AstraeaApkPatcher.REQUIRED_LIBS.filter { name ->
+    /**
+     * Settles the build's shape from the files themselves, now that they are on local storage and
+     * their entry lists can be read without streaming them. An XAPK is why this exists: its outer
+     * archive carries no manifest and no stub, so only the extracted splits can say what it is.
+     *
+     * A packed build also needs its restored libraries before anything is written, so the gate is
+     * re-run here whenever that answer arrives late.
+     */
+    private fun classifyFromFiles(context: Context, files: Array<File>): Boolean {
+        val info = ShellDetection.inspectFiles(files.toList())
+        // The copied files are the build that will be patched, so their version is the one the
+        // restored libraries have to match.
+        if (info.versionStamp != null) targetStamp = info.versionStamp
+        val packed = client.alwaysShellProtected || info.protected
+        if (packed == shellProtected) return true
+
+        shellProtected = packed
+        log("· build: " + (if (packed) "packer-protected" else "plain"))
+        return if (packed) gateLibraries(context) else true
+    }
+
+    /** Refuses the run when a library the patch writes is not on disk yet. */
+    private fun gateLibraries(context: Context): Boolean {
+        // A restored image and metadata only match the build they were unpacked from; installing
+        // them over another version fails at startup, so say which one is on disk first.
+        val store = client.libraries
+        if (store.isStale(context, targetStamp)) {
+            log(
+                context.getString(
+                    R.string.libraries_stale_warning,
+                    store.readStamp(context).orEmpty(),
+                    targetStamp.orEmpty()
+                )
+            )
+        }
+
+        val missing = missingLibraries(context)
+        if (missing.isEmpty()) return true
+        log(
+            context.getString(R.string.shell_libraries_incomplete)
+                .format(missing.joinToString(", "))
+        )
+        return false
+    }
+
+    /** Libraries the run needs but the user has not imported or unpacked yet. */
+    private fun missingLibraries(context: Context): List<String> {
+        val dir = client.libraries.directory(context)
+        return client.libraries.requiredLibraries(shellProtected).filter { name ->
             val lib = dir.resolve(name)
             !lib.isFile || lib.length() <= 0L
         }
@@ -791,13 +878,13 @@ class AppPatcher(
         }
     }
 
-    private fun installHachimiPlugins(context: Context, libDir: File, isDirectInstall: Boolean = false) {
-        val plugins = HachimiPluginManager.enabledPluginFiles(context)
+    private fun installPlugins(context: Context, libDir: File, isDirectInstall: Boolean = false) {
+        val plugins = client.plugins.enabledPluginFiles(context)
         if (plugins.isEmpty()) return
 
         val installedNames = mutableListOf<String>()
         for (plugin in plugins) {
-            val destName = HachimiPluginManager.prefixedName(plugin.name)
+            val destName = client.plugins.prefixedName(plugin.name)
             val dest = libDir.resolve(destName)
             try {
                 val success = if (isDirectInstall) {
@@ -1042,120 +1129,14 @@ class AppPatcher(
         return installApks(context, arrayOf(apk))
     }
 
-    private fun getAssetDownloadUrl(assets: List<Map<String, Any>>, name: String) =
-        assets.find { it["name"] as String == name }?.get("browser_download_url") as String?
-
-
-    private suspend fun syncHachimiModLib(context: Context): String? {
+    /**
+     * Makes sure the client's mod runtime is on disk before it is written. The source is the one
+     * the Mod Source sheet manages: GitHub releases, or the local file the user picked.
+     */
+    private suspend fun syncModLibrary(context: Context): String? {
         task = context.getString(R.string.syncing_app_libs)
-
-        val libsDir = context.libsDir
-        if (!libsDir.exists()) libsDir.mkdir() || return null
-
-        val modSource = context.getPrefValue(PrefKey.TRACEN_MOD_SOURCE) as String
-        if (modSource == "local") {
-            val customUriStr = context.getPrefValue(PrefKey.TRACEN_MOD_SO_URI) as String
-            if (customUriStr.isEmpty()) {
-                log(context.getString(R.string.error_local_library_no_file))
-                return null
-            }
-            log(context.getString(R.string.using_local_library))
-            try {
-                val customUri = customUriStr.toUri()
-                context.contentResolver.openInputStream(customUri).use { input ->
-                    if (input == null) throw IOException("Failed to open local library input stream")
-                    val arm64Lib = context.hachimiModLib
-                    arm64Lib.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                val validation = HachimiLibrarySafeguard.validateModLibraryFile(context.hachimiModLib)
-                if (validation is HachimiLibrarySafeguard.ValidationResult.Error) {
-                    context.hachimiModLib.delete()
-                    log(validation.message(context))
-                    return null
-                }
-                val detectedVer = (validation as HachimiLibrarySafeguard.ValidationResult.Valid).version
-                context.dataStore.edit { preferences ->
-                    preferences[PrefKey.HACHIMI_LIBS_VERSION] = detectedVer
-                }
-                log(context.getString(R.string.local_library_loaded))
-                return detectedVer
-            } catch (ex: Exception) {
-                Log.e("AppPatcher", "Failed to load local library", ex)
-                log(context.getString(R.string.error_local_library_load_failed).format(ex.message))
-                return null
-            }
-        }
-
-        val currentVer = context.getPrefValue(PrefKey.HACHIMI_LIBS_VERSION) as String?
-        val modRepo = context.getPrefValue(PrefKey.HACHIMI_REPO) as String
-
-        try {
-            val releases = GitHubReleases(modRepo)
-            val latest = try {
-                releases.fetchLatest()
-            } catch (ex: Exception) {
-                Log.w("AppPatcher", "GitHub fetch failed, trying Codeberg fallback: ${ex.message}")
-                // Codeberg mirrors the same repo structure under the same owner/name
-                val codebergReleases = GitHubReleases(modRepo, baseUrl = "https://codeberg.org/api/v1/repos")
-                codebergReleases.fetchLatest()
-            }
-            val tagName = latest["tag_name"] as String
-
-            val arm64Lib = context.hachimiModLib
-
-            if (tagName == currentVer && arm64Lib.exists()) {
-                return tagName
-            }
-
-            val assets = (latest["assets"] as ArrayList<*>).filterIsInstance<Map<String, Any>>()
-            val arm64LibUrl = URL(
-                getAssetDownloadUrl(assets, MOD_ARM64_LIB_NAME) ?:
-                throw RuntimeException("ARM64 lib asset not found")
-            )
-            val sha256Url = URL(
-                getAssetDownloadUrl(assets, "sha256.json") ?:
-                throw RuntimeException("SHA256 hash asset not found")
-            )
-
-            val hashes = fetchJson(sha256Url)
-
-            val workDir = context.workDir
-            val arm64LibTmp = workDir.resolve(MOD_ARM64_LIB_NAME)
-
-            log(context.getString(R.string.downloading_file).format(MOD_ARM64_LIB_NAME))
-            progress = -1f
-            val arm64Sha256 = bytesToHex(downloadFileAndDigestSHA256(arm64LibUrl, arm64LibTmp) {
-                progress = it
-            })
-
-            if (arm64Sha256 != hashes[MOD_ARM64_LIB_NAME]) {
-                log(context.getString(R.string.corrupted_file_abort_download))
-                arm64LibTmp.delete()
-                throw IOException()
-            }
-
-            arm64LibTmp.renameTo(arm64Lib) || throw RuntimeException("Failed to move ARM64 lib")
-
-            context.dataStore.edit { preferences ->
-                preferences[PrefKey.HACHIMI_LIBS_VERSION] = tagName
-            }
-
-            log(context.getString(R.string.app_lib_updated))
-            return tagName
-        }
-        catch (ex: Exception) {
-            Log.e("AppPatcher", "Exception", ex)
-
-            if (currentVer != null) {
-                log(context.getString(R.string.failed_to_sync_app_libs))
-                return currentVer
-            }
-
-            log(context.getString(R.string.failed_to_download_app_libs))
-            return null
-        }
+        progress = -1f
+        return client.modSource.ensure(context, ::log) { fraction -> progress = fraction }
     }
 
     companion object {

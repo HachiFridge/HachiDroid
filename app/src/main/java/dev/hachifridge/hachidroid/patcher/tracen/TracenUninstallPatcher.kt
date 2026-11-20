@@ -1,8 +1,12 @@
-package dev.hachifridge.hachidroid.patcher
+package dev.hachifridge.hachidroid.patcher.tracen
 
 import android.content.Context
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
+import dev.hachifridge.hachidroid.patcher.ClientPatcher
+import dev.hachifridge.hachidroid.patcher.LEGACY_MOUNT_SCRIPT_DIR
+import dev.hachifridge.hachidroid.patcher.Patcher
+import dev.hachifridge.hachidroid.patcher.RootUtils
 import java.io.File
 
 /**
@@ -10,7 +14,7 @@ import java.io.File
  * legacy mounts, restores the original libmain, drops plugin libs and the
  * hachimi_internal_files marker. Save data and downloaded game data are kept.
  */
-class HachimiUninstallPatcher : Patcher() {
+class TracenUninstallPatcher : Patcher() {
     override val successMessageRes: Int = R.string.uninstall_success_msg
     override val failureMessageRes: Int = R.string.uninstall_failed_msg
     override val failureTitleRes: Int = R.string.uninstall_failed_title
@@ -29,15 +33,15 @@ class HachimiUninstallPatcher : Patcher() {
             task = context.getString(R.string.removing_legacy_files)
             progress = -1f
 
-            if (AppPatcher.isApkMounted(context)) AppPatcher.unmountApk(context)
+            if (ClientPatcher.isApkMounted(context)) ClientPatcher.unmountApk(context)
             RootUtils.removeDirectory(LEGACY_MOUNT_SCRIPT_DIR)
         }
 
-        if (AppPatcher.isApkMounted(context)) {
+        if (ClientPatcher.isApkMounted(context)) {
             task = context.getString(R.string.uninstall_unmounting)
             progress = -1f
 
-            if (!AppPatcher.unmountApk(context)) {
+            if (!ClientPatcher.unmountApk(context)) {
                 log(context.getString(R.string.uninstall_unmount_failed))
                 return false
             }

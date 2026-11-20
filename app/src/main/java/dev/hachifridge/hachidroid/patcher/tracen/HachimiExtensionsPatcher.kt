@@ -1,4 +1,4 @@
-package dev.hachifridge.hachidroid.patcher
+package dev.hachifridge.hachidroid.patcher.tracen
 
 import com.reandroid.arsc.chunk.xml.AndroidManifestBlock
 import java.io.File

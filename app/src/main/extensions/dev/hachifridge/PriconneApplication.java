@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Replacement Application for a patched Priconne install.
  *
- * The game's own Application class lives in the CrackProof-protected shell, so replacing it is
+ * The game's own Application class lives in the native packer shell, so replacing it is
  * what lets the game start at all once that shell is gone. This class does three things and
  * nothing else: hand the real entry point its context, load the mod library, and ask for the
  * storage permissions the game needs on modern Android.
@@ -33,7 +33,7 @@ public class PriconneApplication extends Application {
         super.attachBaseContext(base);
 
         // The game's entry Application keeps a static context that other classes read. Pointing
-        // it here keeps those reads valid without running any CrackProof initialization.
+        // it here keeps those reads valid without running any native shell initialization.
         try {
             Class<?> entryAppClass = Class.forName("jp.co.cygames.princessconnectredive.EntryApplication");
             java.lang.reflect.Field field = entryAppClass.getField("mContext");

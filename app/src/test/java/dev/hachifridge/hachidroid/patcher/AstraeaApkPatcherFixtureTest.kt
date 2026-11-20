@@ -1,6 +1,7 @@
 package dev.hachifridge.hachidroid.patcher
 
 import com.reandroid.arsc.chunk.xml.AndroidManifestBlock
+import dev.hachifridge.hachidroid.patcher.astraea.AstraeaApkPatcher
 import java.io.File
 import java.nio.file.Files
 import java.util.zip.ZipInputStream
@@ -62,7 +63,11 @@ class AstraeaApkPatcherFixtureTest {
 
         // The patcher only writes the blob; dex validity belongs to d8, not to this step.
         val injected = "dex\n035\u0000".toByteArray()
-        assertTrue(logs.joinToString("\n"), AstraeaApkPatcher.patchBaseSplit(extractDir, injected) { logs += it })
+        // Priconne's base split carries no restored asset, so the library folder is unused here.
+        assertTrue(
+            logs.joinToString("\n"),
+            AstraeaApkPatcher.patchBaseSplit(extractDir, tempDir("priconne-libs"), injected) { logs += it }
+        )
 
         val manifest = AndroidManifestBlock.load(extractDir.resolve("AndroidManifest.xml"))
         val applicationName = manifest.applicationElement
@@ -99,11 +104,11 @@ class AstraeaApkPatcherFixtureTest {
         assumeTrue("libs dir lacks the required libraries", downloaded.isFile)
 
         val logs = mutableListOf<String>()
-        assertTrue(logs.joinToString("\n"), AstraeaApkPatcher.patchConfigSplit(extractDir, libsDir) { logs += it })
+        assertTrue(logs.joinToString("\n"), AstraeaApkPatcher.patchConfigSplit(extractDir, libsDir, emptyList()) { logs += it })
 
         val arm64 = extractDir.resolve("lib/arm64-v8a")
-        val stubs = arm64.listFiles()!!.filter { AstraeaApkPatcher.isCrackProofStub(it.name) }
-        assertTrue("CrackProof stubs survived: $stubs", stubs.isEmpty())
+        val stubs = arm64.listFiles()!!.filter { AstraeaApkPatcher.isPackerStub(it.name) }
+        assertTrue("Packer stubs survived: $stubs", stubs.isEmpty())
 
         AstraeaApkPatcher.REQUIRED_LIBS.forEach { name ->
             val patched = arm64.resolve(name)

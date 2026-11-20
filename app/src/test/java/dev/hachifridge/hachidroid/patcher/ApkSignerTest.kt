@@ -8,6 +8,7 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -62,7 +63,7 @@ class ApkSignerTest {
         assertTrue(ks.getCertificate(alias).toString().contains("CN=HachiDroid"))
 
         // HachiDroid's password opens it; UPE's must not.
-        assertTrue(loadSigningKey(ks, alias) is PrivateKey)
+        assertNotNull(loadSigningKey(ks, alias))
         assertThrows(UnrecoverableKeyException::class.java) {
             ks.getKey(alias, UpeMigration.KS_PASSWORD.toCharArray())
         }
