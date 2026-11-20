@@ -12,6 +12,7 @@
         <package android:name="jp.co.cygames.umamusume" />
         <package android:name="com.komoe.kmumamusumegp" />
         <package android:name="com.komoe.umamusumeofficial" />
+        <package android:name="com.cygames.umamusume" />
         <package android:name="com.kakaogames.umamusume" />
         <!-- Astraea mode (JP). Package visibility is static: an id missing here is invisible to
              PackageManager, so an installed game would read as not installed. -->

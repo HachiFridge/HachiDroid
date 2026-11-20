@@ -25,7 +25,6 @@
     <string name="settings_group_patching">Patching</string>
     <string name="settings_group_signing">Signing key</string>
     <string name="check_for_updates_desc">Occasionally check for updates when the app starts.</string>
-    <string name="hachimi_repo">Hachimi repo (Tracen)</string>
     <string name="export_signing_key">Export signing key</string>
     <string name="export_signing_key_desc">Export the BKS keystore used to sign APK files.</string>
     <string name="import_signing_key">Import signing key</string>
@@ -266,9 +265,13 @@ You can migrate manually instead: export the signing key from UmaPatcher-Edge\'s
     <string name="clear_files">Clear</string>
     <string name="start_patching">Start patching</string>
     <string name="mod_engine_title">Mod Source</string>
-    <string name="tracen_mod_source_title">Hachimi Mod Source</string>
-    <string name="tracen_mod_source_desc">Choose where HachiDroid obtains the Hachimi-Edge native runtime library.</string>
+    <string name="mod_source_desc">Choose where HachiDroid gets the mod library for this game.</string>
+    <string name="mod_repo">Mod repo (%1$s)</string>
+    <string name="mod_repo_missing">Set a mod repo in Settings first.</string>
+    <string name="mod_asset_missing">The latest release has no mod library.</string>
     <string name="plugins_active_badge">%d active</string>
+    <string name="plugins_none_installed">None installed</string>
+    <string name="plugins_installed_count">%1$d installed</string>
     <string name="capability_root">Root</string>
     <string name="capability_shizuku">Shizuku</string>
     <string name="capability_16kb">16KB Alignment</string>
@@ -276,8 +279,8 @@ You can migrate manually instead: export the signing key from UmaPatcher-Edge\'s
     <!-- App Management -->
     <string name="game_management_title">Game Management</string>
     <string name="game_management_clients_title">Installed clients</string>
-    <string name="game_family_tracen" translatable="false">Umamusume</string>
-    <string name="game_family_astraea" translatable="false">Princess Connect! Re:Dive</string>
+    <string name="game_family_tracen" translatable="false">UM:PD</string>
+    <string name="game_family_astraea" translatable="false">PC:RD</string>
     <string name="mod_engine_hachimi" translatable="false">Hachimi</string>
     <string name="mod_engine_daringtact" translatable="false">DaringTact</string>
     <string name="game_regions_tracen">Japan, Global, Traditional Chinese, or Korean</string>
@@ -329,34 +332,34 @@ You can migrate manually instead: export the signing key from UmaPatcher-Edge\'s
     <!-- Astraea (Priconne Re:Dive) mode -->
     <string name="mode_tracen" translatable="false">Tracen</string>
     <string name="mode_astraea" translatable="false">Astraea</string>
-
     <string name="mode_switch">Switch mode</string>
     <string name="libraries_missing_lib">Not installed</string>
-    <string name="astraea_libraries_incomplete">Missing libraries: %s. Add them in Patch Studio first.</string>
-    <string name="libraries_tab_on_device">On device</string>
-    <string name="libraries_tab_import">Import</string>
+    <string name="shell_libraries_incomplete">Missing libraries: %s.</string>
     <string name="libraries_import_action">Add libraries</string>
-    <string name="libraries_import_hint">Pick libil2cpp.so and libnative.so at once, or a zip or APK that contains them.</string>
-    <string name="libraries_import_done">%1$d of 2 libraries imported</string>
+    <string name="libraries_import_hint">Pick the native libraries of the game, or a zip or APK that contains them.</string>
+    <string name="libraries_import_done">%1$d libraries imported</string>
+    <string name="libraries_import_partial">%1$d libraries imported; ignored %2$s</string>
+    <string name="libraries_import_still_packed">Still packer-encrypted: %1$s. Unpack them from the game splits instead of importing them.</string>
     <string name="libraries_import_failed">Nothing usable in that selection</string>
+    <string name="libraries_stale_warning">These files were restored from another game version (%1$s, now %2$s). Unpack them again from the current splits before patching.</string>
+    <string name="libraries_misaligned_warning">Some restored libraries are not 16 KB aligned. A device with 16 KB memory pages may fail to load them.</string>
     <string name="libraries_unpack_action">Unpack from the selected splits</string>
     <string name="libraries_unpack_cached">Libraries unpacked</string>
-    <string name="libraries_unpack_cached_hint">Both are already unpacked and stay in app storage, so there is nothing to redo.</string>
+    <string name="libraries_unpack_cached_hint">The libraries are already unpacked and stay in app storage, so there is nothing to redo.</string>
     <string name="libraries_unpack_need_files">Select the split APKs above first.</string>
-    <string name="libraries_unpack_hint">Senbei unpacks both libraries from the split APKs selected above.</string>
+    <string name="libraries_unpack_hint">Senbei unpacks the protected libraries from the split APKs selected above.</string>
     <string name="libraries_unpacking">Unpacking… this takes a few minutes for a library this size.</string>
-    <string name="libraries_unpack_done">%1$d of 2 libraries unpacked</string>
+    <string name="libraries_unpack_done">%1$d libraries unpacked</string>
     <string name="libraries_unpack_failed">Unpacking failed. The library was left untouched.</string>
     <string name="libraries_unpack_unavailable">On-device unpacking is not available on this device.</string>
     <string name="libraries_unpack_no_space">Not enough free storage; unpacking needs about 700 MB.</string>
-    <string name="libraries_unpack_no_libs">No libil2cpp.so or libnative.so in that archive.</string>
+    <string name="libraries_unpack_no_libs">No usable library in that archive.</string>
 
-    <string name="astraea_patch_is_one_way">Patching is one-way: a patched install cannot be reverted to stock. To play unmodded again, uninstall the game and reinstall it from the Play Store.</string>
-    <string name="astraea_no_direct_install">Astraea mode cannot patch an installed game: the CrackProof shell has to be rebuilt away. Patch the split APKs or an XAPK instead.</string>
-    <string name="astraea_install_replaces_store_copy">A patched build is signed with your key, so the installer cannot update the store copy. Uninstall the game first if it is installed; your account data lives on the server.</string>
-    <string name="astraea_drop_files_subtitle">Select the split APKs of the game (base + config.arm64-v8a) or an XAPK.</string>
-    <string name="daringtact_repo">DaringTact repo (Astraea)</string>
-    <string name="astraea_mod_source_desc">Choose where HachiDroid obtains the DaringTact mod library.</string>
+    <string name="shell_patch_is_one_way">Patching is one-way: a patched install cannot be reverted to stock. To play unmodded again, uninstall the game and reinstall it from the Play Store.</string>
+    <string name="shell_no_direct_install">This mode cannot patch an installed game: the packer shell has to be rebuilt away. Patch the split APKs or an XAPK instead.</string>
+    <string name="shell_no_legacy_install">The legacy install cannot be used on this build: the packer shell has to be rebuilt away. Save the patched files or use a normal install instead.</string>
+    <string name="shell_install_replaces_store_copy">A patched build is signed with your key, so the installer cannot update the store copy. Uninstall the game first if it is installed; your account data lives on the server.</string>
+    <string name="shell_drop_files_subtitle">Select the split APKs of the game (base + config.arm64-v8a) or an XAPK.</string>
     <string name="mod_library_download">Download mod library</string>
     <string name="mod_library_redownload">Redownload mod library</string>
     <string name="mod_library_ready">%1$s ready</string>
@@ -386,27 +389,18 @@ You can migrate manually instead: export the signing key from UmaPatcher-Edge\'s
     <string name="plugin_guard_failed">Could not validate the plugin: %1$s</string>
     <string name="lib_guard_not_16kb_aligned">This library is not aligned to 16 KB page boundaries (max alignment: %1$d bytes). Your device requires 16 KB page compatibility.</string>
     <string name="plugin_guard_not_16kb_aligned">The plugin %1$s is not aligned to 16 KB page boundaries (max alignment: %2$d bytes). Your device requires 16 KB page compatibility.</string>
-    <string name="astraea_mod_source_title">DaringTact Mod Source</string>
     <string name="mod_no_file">No file selected</string>
     <string name="libraries_title">Libraries</string>
     <string name="libraries_ready_count">%1$d of %2$d ready</string>
     <string name="libraries_remove">Remove %1$s</string>
     <string name="libraries_removed">%1$s removed</string>
     <string name="libraries_remove_failed">Could not remove %1$s</string>
-    <string name="astraea_mod_local_none">No local library picked yet.</string>
-    <string name="astraea_mod_saved_to">Saved to %s</string>
-    <string name="astraea_mod_installed">libdaringtact.so installed (%s)</string>
-    <string name="astraea_mod_repo_missing">Set a DaringTact repo in Settings first.</string>
-    <string name="astraea_mod_asset_missing">The latest release has no libdaringtact.so.</string>
-    <string name="astraea_mod_not_elf">That file is not a native library.</string>
-    <string name="astraea_mod_failed">Could not get libdaringtact.so: %s</string>
-    <string name="hachimi_mod_repo_missing">Set a Hachimi repo in Settings first.</string>
-    <string name="hachimi_mod_asset_missing">The latest release has no Hachimi mod library.</string>
     <string name="hachimi_mod_checksum_missing">The release has no checksum file.</string>
     <string name="hachimi_mod_checksum_mismatch">Downloaded mod library checksum mismatch.</string>
     <string name="direct_root_injection">Direct Root Injection</string>
     <string name="direct_root_injection_desc">Patches the installed game directly without needing external APK files.</string>
-    <string name="astraea_assets_missing">The bundled Application class is missing from this build. Reinstall HachiDroid.</string>
+    <string name="shell_build_needs_split_patch">This build carries a packer but was not detected as protected. Select the split APKs of the game (base + config.arm64-v8a) and patch them again.</string>
+    <string name="shell_assets_missing">The bundled Application class is missing from this build. Reinstall HachiDroid.</string>
     <string name="stage_patch_manifest">Patch manifest</string>
 
     <string name="notification_channel_patching">Patching Progress</string>
