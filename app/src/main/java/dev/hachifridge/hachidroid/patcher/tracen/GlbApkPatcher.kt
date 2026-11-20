@@ -100,8 +100,9 @@ internal object GlbApkPatcher : ShellSplitPatcher {
         libsDir: File,
         log: (String) -> Unit
     ): Boolean {
-        val source = libsDir.resolve(METADATA_NAME)
-        if (!source.isFile || source.length() <= 0L) {
+        val source = libsDir.resolve(METADATA_NAME).takeIf { it.isFile && it.length() > 0L }
+            ?: libsDir.parentFile?.resolve("libs")?.resolve(METADATA_NAME)?.takeIf { it.isFile && it.length() > 0L }
+        if (source == null) {
             log("Missing $METADATA_NAME")
             return false
         }
@@ -161,8 +162,9 @@ internal object GlbApkPatcher : ShellSplitPatcher {
         }
         if (!writeLibrary(gameLib, arm64Dir, GAME_LIB_NAME, log)) return false
 
-        val modLib = libsDir.resolve(MOD_LIB_NAME)
-        if (!modLib.isFile || modLib.length() <= 0L) {
+        val modLib = libsDir.resolve(MOD_LIB_NAME).takeIf { it.isFile && it.length() > 0L }
+            ?: libsDir.parentFile?.resolve("libs")?.resolve(MOD_LIB_NAME)?.takeIf { it.isFile && it.length() > 0L }
+        if (modLib == null) {
             log("Missing library: $MOD_LIB_NAME")
             return false
         }

@@ -17,6 +17,7 @@ import dev.hachifridge.hachidroid.BuildConfig
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
 import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.client.ShellDetection
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.core.getPrefValue
@@ -61,7 +62,8 @@ class ClientPatcher(
     private val shizukuInstall: Boolean,
     private val legacyInstall: Boolean = false,
     /** Which client this run patches. Read once: the client cannot change mid-run. */
-    private val client: Client = GameChecker.client
+    private val client: Client = GameChecker.client,
+    private val profile: ClientProfile = GameChecker.profile
 ) : Patcher() {
     /**
      * Whether this run patches a packer-protected build. UM:PD's two releases differ here while being
@@ -81,7 +83,7 @@ class ClientPatcher(
         }
 
     /** The mod runtime this client patches in, wherever its source put it. */
-    private fun modLib(context: Context): File = client.modSource.target(context)
+    private fun modLib(context: Context): File = profile.modSource.target(context)
 
     override suspend fun run(context: Context): Boolean {
         val startedAt = SystemClock.elapsedRealtime()
@@ -92,7 +94,8 @@ class ClientPatcher(
         try {
             val probe = ShellDetection.inspect(context, fileUris.toList())
             targetStamp = probe.versionStamp
-            shellProtected = client.alwaysShellProtected ||
+            shellProtected = profile.shellProtected ||
+                client.alwaysShellProtected ||
                 probe.protected ||
                 // The installed copy stands in only for a run with no picks (a direct install);
                 // it must not decide for the files the user did pick.
@@ -730,7 +733,7 @@ class ClientPatcher(
                 return false
             }
 
-            val libsDir = client.libraries.directory(context)
+            val libsDir = profile.libraries.directory(context)
             val patched = timed("patch manifest", filename) {
                 patcher.patchBaseSplit(extractDir, libsDir, applicationDex) { line -> log(line) }
             }
@@ -747,7 +750,7 @@ class ClientPatcher(
         if (isConfig) {
             if (!markSplit(SplitApkType.CONFIG_ARM64)) return false
 
-            val libsDir = client.libraries.directory(context)
+            val libsDir = profile.libraries.directory(context)
             val plugins = client.plugins.enabledPluginFiles(context)
                 .map { client.plugins.prefixedName(it.name) to it }
             val patched = timed("patch libraries", filename) {
@@ -806,9 +809,15 @@ class ClientPatcher(
 
     /** Libraries the run needs but the user has not imported or unpacked yet. */
     private fun missingLibraries(context: Context): List<String> {
-        val dir = client.libraries.directory(context)
-        return client.libraries.requiredLibraries(shellProtected).filter { name ->
-            val lib = dir.resolve(name)
+        val dir = profile.libraries.directory(context)
+        val modDir = profile.libraries.modDirectory(context)
+        return profile.libraries.requiredLibraries(shellProtected).filter { name ->
+            val lib = if (name == profile.libraries.modLibrary) {
+                val primary = modDir.resolve(name)
+                if (primary.isFile && primary.length() > 0L) primary else dir.resolve(name)
+            } else {
+                dir.resolve(name)
+            }
             !lib.isFile || lib.length() <= 0L
         }
     }
