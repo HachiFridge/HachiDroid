@@ -50,6 +50,7 @@
     <!-- Patcher options -->
     <string name="direct_install">Direct install</string>
     <string name="save_patched_file">Save patched file</string>
+    <string name="save_action">Save</string>
     <string name="normal_install">Normal install</string>
     <string name="shizuku_install">Shizuku install</string>
     <string name="install_state_available">(Available)</string>

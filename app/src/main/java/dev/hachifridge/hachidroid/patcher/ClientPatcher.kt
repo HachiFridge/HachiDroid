@@ -19,6 +19,7 @@ import dev.hachifridge.hachidroid.core.GameChecker
 import dev.hachifridge.hachidroid.client.Client
 import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.client.ShellDetection
+import dev.hachifridge.hachidroid.client.formatDisplayStamp
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.core.getPrefValue
 import dev.hachifridge.hachidroid.patcher.astraea.AstraeaApkPatcher
@@ -787,15 +788,16 @@ class ClientPatcher(
     private fun gateLibraries(context: Context): Boolean {
         // A restored image and metadata only match the build they were unpacked from; installing
         // them over another version fails at startup, so say which one is on disk first.
-        val store = client.libraries
+        val store = profile.libraries
         if (store.isStale(context, targetStamp)) {
             log(
                 context.getString(
                     R.string.libraries_stale_warning,
-                    store.readStamp(context).orEmpty(),
-                    targetStamp.orEmpty()
+                    formatDisplayStamp(store.readStamp(context)),
+                    formatDisplayStamp(targetStamp)
                 )
             )
+            return false
         }
 
         val missing = missingLibraries(context)

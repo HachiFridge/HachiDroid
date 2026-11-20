@@ -43,6 +43,7 @@
     <string name="view_source_code">Tignan ang source code</string>
     <string name="direct_install">Direktang install (kailangan ng root)</string>
     <string name="save_patched_file">I-save ang patched file</string>
+    <string name="save_action">I-save</string>
     <string name="normal_install">Normal na install</string>
     <string name="shizuku_install">Shizuku install</string>
     <string name="install_state_available">(Available)</string>

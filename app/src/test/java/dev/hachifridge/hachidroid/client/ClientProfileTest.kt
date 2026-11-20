@@ -86,4 +86,42 @@ class ClientProfileTest {
             ClientProfile.TRACEN_JP.installMethodKey.name
         )
     }
+
+    @Test
+    fun testFormatDisplayStamp() {
+        assertEquals("12.9.0", formatDisplayStamp("12.9.0/null"))
+        assertEquals("12.9.5 (325)", formatDisplayStamp("12.9.5/325"))
+        assertEquals("12.9.0", formatDisplayStamp("12.9.0"))
+        assertEquals("12.9.0", formatDisplayStamp("12.9.0/"))
+        assertEquals("", formatDisplayStamp(null))
+        assertEquals("", formatDisplayStamp(""))
+    }
+
+    @Test
+    fun testStampsMatch() {
+        // Same version, one with legacy /null
+        assertTrue(stampsMatch("1.35.5/null", "1.35.5"))
+        assertTrue(stampsMatch("1.35.5", "1.35.5/null"))
+        assertTrue(stampsMatch("1.35.5/null", "1.35.5/null"))
+        assertTrue(stampsMatch("1.35.5", "1.35.5"))
+
+        // Same version name, one without build code
+        assertTrue(stampsMatch("1.35.5", "1.35.5/100984015"))
+        assertTrue(stampsMatch("1.35.5/100984015", "1.35.5"))
+
+        // Same version name, matching build code
+        assertTrue(stampsMatch("12.9.5/325", "12.9.5/325"))
+
+        // Different version name
+        assertFalse(stampsMatch("12.9.0/null", "12.9.5/325"))
+        assertFalse(stampsMatch("12.9.0", "12.9.5"))
+
+        // Same version name, different build codes
+        assertFalse(stampsMatch("12.9.5/325", "12.9.5/326"))
+
+        // Null checks
+        assertFalse(stampsMatch(null, "1.35.5"))
+        assertFalse(stampsMatch("1.35.5", null))
+        assertFalse(stampsMatch(null, null))
+    }
 }

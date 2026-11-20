@@ -49,6 +49,7 @@
     <!-- Patcher options -->
     <string name="direct_install">直接インストール</string>
     <string name="save_patched_file">パッチ済みファイルを保存</string>
+    <string name="save_action">保存</string>
     <string name="normal_install">通常インストール</string>
     <string name="shizuku_install">Shizukuでインストール</string>
     <string name="install_state_available">(利用可能)</string>

@@ -40,6 +40,7 @@
     <string name="view_source_code">Xem mã nguồn</string>
     <string name="direct_install">Cài trực tiếp (cần root)</string>
     <string name="save_patched_file">Lưu file đã được vá</string>
+    <string name="save_action">Lưu</string>
     <string name="normal_install">Cài đặt thường</string>
     <string name="shizuku_install">Cài đặt Shizuku</string>
     <string name="install_state_available">(Khả dụng)</string>

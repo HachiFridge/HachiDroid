@@ -43,6 +43,7 @@
     <string name="view_source_code">Просмотреть исходный код</string>
     <string name="direct_install">Прямая установка (требуется рут)</string>
     <string name="save_patched_file">Сохранить пропатченный файл</string>
+    <string name="save_action">Сохранить</string>
     <string name="normal_install">Обычная установка</string>
     <string name="shizuku_install">Установка через Shizuku</string>
     <string name="install_state_available">(Доступно)</string>

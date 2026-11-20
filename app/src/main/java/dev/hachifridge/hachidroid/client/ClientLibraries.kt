@@ -114,6 +114,9 @@ class LibrarySet(
         val isReady: Boolean get() = total > 0 && presentCount == total
         val hasMisaligned: Boolean get() = libs.any { it.present && it.is16KbCompatible == false }
 
+        val formattedArtifactsStamp: String get() = formatDisplayStamp(artifactsStamp)
+        val formattedTargetStamp: String get() = formatDisplayStamp(targetStamp)
+
         /**
          * Restored files that belong to another game version.
          *
@@ -122,7 +125,7 @@ class LibrarySet(
          */
         val artifactsStale: Boolean
             get() = shellProtected && artifactsStamp != null &&
-                targetStamp != null && artifactsStamp != targetStamp
+                targetStamp != null && !stampsMatch(artifactsStamp, targetStamp)
     }
 
     /** The checklist before anything has been inspected. */
@@ -160,7 +163,12 @@ class LibrarySet(
      */
     fun readStamp(context: Context): String? = runCatching {
         directory(context).resolve(STAMP_FILE)
-            .takeIf { it.isFile }?.readText()?.trim()?.ifEmpty { null }
+            .takeIf { it.isFile }
+            ?.readText()
+            ?.trim()
+            ?.removeSuffix("/null")
+            ?.removeSuffix("/")
+            ?.ifEmpty { null }
     }.getOrNull()
 
     /** Touches the filesystem; call from a background dispatcher. A null [stamp] forgets it. */
@@ -170,14 +178,15 @@ class LibrarySet(
             file.delete()
             return
         }
+        val clean = stamp.trim().removeSuffix("/null").removeSuffix("/")
         file.parentFile?.mkdirs()
-        runCatching { file.writeText(stamp) }
+        runCatching { file.writeText(clean) }
     }
 
     /** Whether the folder's restored files were produced by a different build than [targetStamp]. */
     fun isStale(context: Context, targetStamp: String?): Boolean {
         val stored = readStamp(context) ?: return false
-        return targetStamp != null && stored != targetStamp
+        return targetStamp != null && !stampsMatch(stored, targetStamp)
     }
 
     /**
@@ -485,3 +494,43 @@ val AstraeaLibraries = LibrarySet(
     protectedGameLibraries = emptyList(),
     modLibrary = "libdaringtact.so"
 )
+
+/**
+ * Formats an internal version stamp (`versionName/versionCode` or `versionName`) into a clean
+ * user-facing string, stripping any trailing `/null` or empty build codes.
+ */
+fun formatDisplayStamp(stamp: String?): String {
+    if (stamp.isNullOrBlank()) return ""
+    val parts = stamp.split('/', limit = 2)
+    val name = parts[0].trim()
+    val code = parts.getOrNull(1)?.trim()?.takeIf { it != "null" && it.isNotEmpty() }
+    return if (code != null) "$name ($code)" else name
+}
+
+/**
+ * Compares two version stamps to determine if they describe the same game build.
+ * Normalizes legacy `/null` suffixes and matches on version name and code.
+ */
+fun stampsMatch(stamp1: String?, stamp2: String?): Boolean {
+    if (stamp1 == null || stamp2 == null) return false
+    val clean1 = stamp1.trim().removeSuffix("/null").removeSuffix("/")
+    val clean2 = stamp2.trim().removeSuffix("/null").removeSuffix("/")
+    if (clean1 == clean2) return true
+
+    val parts1 = clean1.split('/', limit = 2)
+    val name1 = parts1[0].trim()
+    val code1 = parts1.getOrNull(1)?.trim()?.takeIf { it != "null" && it.isNotEmpty() }
+
+    val parts2 = clean2.split('/', limit = 2)
+    val name2 = parts2[0].trim()
+    val code2 = parts2.getOrNull(1)?.trim()?.takeIf { it != "null" && it.isNotEmpty() }
+
+    if (name1.isNotEmpty() && name1 == name2) {
+        if (code1 != null && code2 != null) {
+            return code1 == code2
+        }
+        return true
+    }
+
+    return false
+}

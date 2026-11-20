@@ -91,6 +91,7 @@ import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
 import dev.hachifridge.hachidroid.client.Client
 import dev.hachifridge.hachidroid.client.ClientProfile
+import dev.hachifridge.hachidroid.client.ShellDetection
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.client.LibrarySet
 import dev.hachifridge.hachidroid.core.dataStore
@@ -102,9 +103,12 @@ import dev.hachifridge.hachidroid.ui.navigation.Navigator
 import dev.hachifridge.hachidroid.ui.screen.HomeViewModel
 import dev.hachifridge.hachidroid.ui.theme.brand_success_dark
 import dev.hachifridge.hachidroid.ui.theme.brand_success_light
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 
 enum class PatcherInstallMethod(
@@ -193,17 +197,23 @@ fun PatchingStudioCard(
     }
 
     // Keyed on the profile: preserves picks per server client profile (e.g. 1 GLB and 1 JP).
-    var fileUris by rememberSaveable(profile) { mutableStateOf<Array<Uri>>(arrayOf()) }
+    var fileUris by remember(profile) { mutableStateOf<Array<Uri>>(arrayOf()) }
 
     var stateLoaded by remember(profile) { mutableStateOf(false) }
     var installMethodLoaded by rememberSaveable(profile) { mutableStateOf(false) }
 
     val fileSelectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val newFileUris = uris.toTypedArray()
-        for (uri in fileUris) releasePersistableUriPermission(context, uri)
         for (uri in newFileUris) tryTakePersistableUriPermission(context, uri)
-        fileUris = newFileUris
-        coroutineScope.launch { saveFileUris(context, profile, newFileUris) }
+        coroutineScope.launch {
+            for (uri in fileUris) {
+                if (uri !in newFileUris) {
+                    safeReleaseUriPermission(context, uri, profile)
+                }
+            }
+            fileUris = newFileUris
+            saveFileUris(context, profile, newFileUris)
+        }
     }
 
     // Libraries are part of the studio now, so its section owns the picker as well.
@@ -215,13 +225,13 @@ fun PatchingStudioCard(
 
     // Restore this profile's persisted state.
     LaunchedEffect(profile) {
-        val savedInstallMethod = takeLegacyInstallMethod(context, profile)
+        val savedInstallMethod = loadInstallMethod(context, profile)
         selectedMethodIndex.intValue = savedInstallMethod
             ?.takeIf { PatcherInstallMethod.fromId(it) in methods }
             ?: PatcherInstallMethod.NORMAL.id
         installMethodLoaded = true
 
-        val storedFileUris = takeLegacyFileUris(context, profile)
+        val storedFileUris = loadFileUris(context, profile)
         val savedFileUris = storedFileUris
             .split('\n')
             .filter { it.isNotEmpty() }
@@ -231,9 +241,18 @@ fun PatchingStudioCard(
             if (canOpenUri(context, uri)) {
                 existingFileUris.add(uri)
             } else {
-                releasePersistableUriPermission(context, uri)
+                safeReleaseUriPermission(context, uri, profile)
             }
         }
+
+        // Validate package ownership of the splits for this profile to heal any cross-profile contamination
+        if (existingFileUris.isNotEmpty()) {
+            val buildInfo = withContext(Dispatchers.IO) { ShellDetection.inspect(context, existingFileUris) }
+            if (buildInfo.packageName != null && !profile.packageNames.contains(buildInfo.packageName)) {
+                existingFileUris.clear()
+            }
+        }
+
         if (existingFileUris.size != savedFileUris.size) {
             saveFileUris(context, profile, existingFileUris.toTypedArray())
         }
@@ -396,6 +415,8 @@ fun PatchingStudioCard(
                                     selectedMethodIndex.intValue = method.id
                                     if (method == PatcherInstallMethod.DIRECT) {
                                         targetSource = PatchTargetSource.INSTALLED
+                                    } else if (targetSource == PatchTargetSource.INSTALLED || method == PatcherInstallMethod.SAVE) {
+                                        targetSource = PatchTargetSource.FILES
                                     }
                                     showMethodSheet = false
                                 },
@@ -541,7 +562,9 @@ fun PatchingStudioCard(
 
             // A shell-protected client's entry point is always the split set, so both the source
             // switch and the "installed game" state would only be dead UI.
-            if (!shellProtected) SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            // Also when "Save patched file" is selected, the source is always files since an installed
+            // game cannot be saved to a standalone file.
+            if (!shellProtected && currentMethod != PatcherInstallMethod.SAVE) SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
                     selected = targetSource == PatchTargetSource.INSTALLED,
                     onClick = {
@@ -664,9 +687,11 @@ fun PatchingStudioCard(
                             if (fileUris.isNotEmpty()) {
                                 TextButton(
                                     onClick = {
-                                        for (uri in fileUris) releasePersistableUriPermission(context, uri)
-                                        fileUris = arrayOf()
-                                        coroutineScope.launch { saveFileUris(context, profile, arrayOf()) }
+                                        coroutineScope.launch {
+                                            for (uri in fileUris) safeReleaseUriPermission(context, uri, profile)
+                                            fileUris = arrayOf()
+                                            saveFileUris(context, profile, arrayOf())
+                                        }
                                     }
                                 ) {
                                     Text(stringResource(R.string.clear_files), color = MaterialTheme.colorScheme.error)
@@ -706,7 +731,7 @@ fun PatchingStudioCard(
                 }
             }
 
-            if (shellProtected) {
+            if (shellProtected && currentMethod != PatcherInstallMethod.SAVE) {
                 // A shell-protected install has no stock copy to go back to: the shell the patch removes is
                 // exactly what an uninstall would need. Say it here, where the decision is made.
                 Surface(
@@ -742,7 +767,7 @@ fun PatchingStudioCard(
 
             // Primary Action Button
             val isButtonEnabled = when {
-                shellProtected -> fileUris.isNotEmpty() && gameFilesReady
+                shellProtected -> fileUris.isNotEmpty() && gameFilesReady && !libraries.artifactsStale
                 targetSource == PatchTargetSource.INSTALLED && currentMethod == PatcherInstallMethod.DIRECT -> isGameInstalled
                 else -> fileUris.isNotEmpty()
             }
@@ -753,9 +778,11 @@ fun PatchingStudioCard(
                     if (currentMethod != PatcherInstallMethod.DIRECT && fileUris.isNotEmpty() && stateLoaded) {
                         val (aliveUris, deadUris) = fileUris.partition { canOpenUri(context, it) }
                         if (deadUris.isNotEmpty()) {
-                            for (uri in deadUris) releasePersistableUriPermission(context, uri)
-                            fileUris = aliveUris.toTypedArray()
-                            coroutineScope.launch { saveFileUris(context, profile, aliveUris.toTypedArray()) }
+                            coroutineScope.launch {
+                                for (uri in deadUris) safeReleaseUriPermission(context, uri, profile)
+                                fileUris = aliveUris.toTypedArray()
+                                saveFileUris(context, profile, aliveUris.toTypedArray())
+                            }
                             staleFilesError = selectedFilesUnavailable
                             return@Button
                         }
@@ -805,14 +832,25 @@ fun PatchingStudioCard(
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_apk_install),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (currentMethod == PatcherInstallMethod.SAVE) {
+                    Icon(
+                        imageVector = Icons.Outlined.FileDownload,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_apk_install),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = stringResource(R.string.start_patching),
+                    text = stringResource(
+                        if (currentMethod == PatcherInstallMethod.SAVE) R.string.save_action
+                        else R.string.start_patching
+                    ),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -931,8 +969,8 @@ private fun LibraryGateSection(
                         Text(
                             text = stringResource(
                                 R.string.libraries_stale_warning,
-                                libraries.artifactsStamp.orEmpty(),
-                                libraries.targetStamp.orEmpty()
+                                libraries.formattedArtifactsStamp,
+                                libraries.formattedTargetStamp
                             ),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.error
@@ -965,22 +1003,28 @@ private fun LibraryGateSection(
                     // libraries and offers import for the runtime alone.
                     if (shellProtected) {
                         if (onDeviceUnpackAvailable) {
+                            val needsUnpack = !gameLibrariesReady || libraries.artifactsStale
                             FilledTonalButton(
                                 onClick = onUnpack,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                enabled = !gameLibrariesReady && splitsAvailable && !unpacking
+                                enabled = needsUnpack && splitsAvailable && !unpacking
                             ) {
                                 Text(
                                     stringResource(
-                                        if (gameLibrariesReady) R.string.libraries_unpack_cached
-                                        else R.string.libraries_unpack_action
+                                        when {
+                                            libraries.artifactsStale -> R.string.libraries_unpack_action
+                                            gameLibrariesReady -> R.string.libraries_unpack_cached
+                                            else -> R.string.libraries_unpack_action
+                                        }
                                     )
                                 )
                             }
                             Text(
                                 text = stringResource(
                                     when {
+                                        libraries.artifactsStale && !splitsAvailable -> R.string.libraries_unpack_need_files
+                                        libraries.artifactsStale -> R.string.libraries_unpack_hint
                                         gameLibrariesReady -> R.string.libraries_unpack_cached_hint
                                         !splitsAvailable -> R.string.libraries_unpack_need_files
                                         else -> R.string.libraries_unpack_hint
@@ -1108,6 +1152,19 @@ private fun tryTakePersistableUriPermission(context: Context, uri: Uri) {
     }
 }
 
+private suspend fun safeReleaseUriPermission(context: Context, uri: Uri, currentProfile: ClientProfile) {
+    val prefs = context.dataStore.data.first()
+    val usedByOther = ClientProfile.entries
+        .filter { it != currentProfile }
+        .any { p ->
+            val stored = prefs[PrefKey.fileUris(p)].orEmpty()
+            stored.split('\n').contains(uri.toString())
+        }
+    if (!usedByOther) {
+        releasePersistableUriPermission(context, uri)
+    }
+}
+
 private fun releasePersistableUriPermission(context: Context, uri: Uri) {
     try {
         context.contentResolver.releasePersistableUriPermission(
@@ -1121,55 +1178,64 @@ private fun releasePersistableUriPermission(context: Context, uri: Uri) {
 private suspend fun saveFileUris(context: Context, profile: ClientProfile, fileUris: Array<Uri>) {
     context.dataStore.edit {
         it[PrefKey.fileUris(profile)] = fileUris.joinToString("\n") { uri -> uri.toString() }
-        it[PrefKey.fileUris(profile.client)] = fileUris.joinToString("\n") { uri -> uri.toString() }
+        it.remove(PrefKey.fileUris(profile.client))
+        it.remove(PrefKey.FILE_URIS)
     }
 }
 
 private suspend fun saveInstallMethod(context: Context, profile: ClientProfile, installMethod: Int) {
     context.dataStore.edit {
         it[PrefKey.installMethod(profile)] = installMethod
-        it[PrefKey.installMethod(profile.client)] = installMethod
+        it.remove(PrefKey.installMethod(profile.client))
+        it.remove(PrefKey.INSTALL_METHOD)
     }
 }
 
-private suspend fun takeLegacyFileUris(context: Context, profile: ClientProfile): String {
-    val profileKeyVal = (context.getPrefValue(PrefKey.fileUris(profile)) as? String)?.ifEmpty { null }
-    if (profileKeyVal != null) return profileKeyVal
-    val clientKeyVal = (context.getPrefValue(PrefKey.fileUris(profile.client)) as? String)?.ifEmpty { null }
-    if (clientKeyVal != null) return clientKeyVal
-    return takeLegacyFileUris(context, profile.client)
-}
-
-private suspend fun takeLegacyInstallMethod(context: Context, profile: ClientProfile): Int? {
-    val profileMethod = (context.getPrefValue(PrefKey.installMethod(profile)) as? Int)
-    if (profileMethod != null) return profileMethod
-    val clientMethod = (context.getPrefValue(PrefKey.installMethod(profile.client)) as? Int)
-    if (clientMethod != null) return clientMethod
-    return takeLegacyInstallMethod(context, profile.client)
-}
-
-/**
- * The single studio slot predates the second game family, so anything in it can only have been
- * picked for Tracen. Reading it once for that client, and then clearing it, keeps an upgrade from
- * losing the current selection while making sure Astraea never adopts a Umamusume split.
- */
-private suspend fun takeLegacyFileUris(context: Context, client: Client): String {
-    if (client != Client.TRACEN) return ""
-    val legacy = context.getPrefValue(PrefKey.FILE_URIS) as String
-    if (legacy.isEmpty()) return ""
-    context.dataStore.edit { prefs ->
-        prefs[PrefKey.fileUris(client)] = legacy
-        prefs[PrefKey.FILE_URIS] = ""
+private suspend fun loadFileUris(context: Context, profile: ClientProfile): String {
+    val prefs = context.dataStore.data.first()
+    if (prefs.contains(PrefKey.fileUris(profile))) {
+        return prefs[PrefKey.fileUris(profile)].orEmpty()
     }
-    return legacy
+
+    // One-time migration for upgrades from earlier versions without profile keys
+    val legacyVal = (prefs[PrefKey.fileUris(profile.client)] ?: prefs[PrefKey.FILE_URIS])?.ifEmpty { null }
+    if (legacyVal != null) {
+        val legacyTarget = ClientProfile.getInstalledProfiles(context.packageManager, profile.client).firstOrNull()
+            ?: ClientProfile.defaultForClient(profile.client)
+        if (profile == legacyTarget) {
+            context.dataStore.edit { editPrefs ->
+                editPrefs[PrefKey.fileUris(profile)] = legacyVal
+                editPrefs.remove(PrefKey.fileUris(profile.client))
+                editPrefs.remove(PrefKey.FILE_URIS)
+            }
+            return legacyVal
+        }
+    }
+
+    context.dataStore.edit { editPrefs ->
+        editPrefs[PrefKey.fileUris(profile)] = ""
+    }
+    return ""
 }
 
-private suspend fun takeLegacyInstallMethod(context: Context, client: Client): Int? {
-    if (client != Client.TRACEN) return null
-    val legacy = context.getPrefValue(PrefKey.INSTALL_METHOD) as Int
-    context.dataStore.edit { prefs ->
-        prefs[PrefKey.installMethod(client)] = legacy
-        prefs.remove(PrefKey.INSTALL_METHOD)
+private suspend fun loadInstallMethod(context: Context, profile: ClientProfile): Int? {
+    val prefs = context.dataStore.data.first()
+    if (prefs.contains(PrefKey.installMethod(profile))) {
+        return prefs[PrefKey.installMethod(profile)]
     }
-    return legacy
+
+    val legacyVal = prefs[PrefKey.installMethod(profile.client)] ?: prefs[PrefKey.INSTALL_METHOD]
+    if (legacyVal != null) {
+        val legacyTarget = ClientProfile.getInstalledProfiles(context.packageManager, profile.client).firstOrNull()
+            ?: ClientProfile.defaultForClient(profile.client)
+        if (profile == legacyTarget) {
+            context.dataStore.edit { editPrefs ->
+                editPrefs[PrefKey.installMethod(profile)] = legacyVal
+                editPrefs.remove(PrefKey.installMethod(profile.client))
+                editPrefs.remove(PrefKey.INSTALL_METHOD)
+            }
+            return legacyVal
+        }
+    }
+    return null
 }

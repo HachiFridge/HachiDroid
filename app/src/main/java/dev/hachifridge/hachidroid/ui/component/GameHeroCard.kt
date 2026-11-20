@@ -27,8 +27,6 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -117,19 +115,6 @@ fun GameHeroCard(
             }
         } else {
             null
-        }
-    }
-
-    val regionResId = remember(packageInfo) {
-        val pkg = packageInfo?.packageName ?: GameChecker.currentPackageName ?: ""
-        when (pkg) {
-            "jp.co.cygames.umamusume" -> R.string.client_jp
-            "com.komoe.kmumamusumegp" -> R.string.client_tw
-            "com.komoe.umamusumeofficial" -> R.string.client_tw
-            "com.cygames.umamusume" -> R.string.client_glb
-            "com.kakaogames.umamusume" -> R.string.client_kr
-            "jp.co.cygames.princessconnectredive" -> R.string.client_jp
-            else -> R.string.target_client
         }
     }
 
@@ -311,33 +296,27 @@ fun GameHeroCard(
 
                     Spacer(Modifier.width(8.dp))
 
-                    // Target client lives with the game identity rather than in the app header.
-                    AssistChip(
+                    // Target client switcher: compact icon-only button to manage installed editions
+                    Surface(
                         onClick = {
                             safeNavigate(lifecycleOwner) {
                                 navigator.navigate(Destination.GameManagement)
                             }
                         },
-                        label = {
-                            Text(
-                                text = stringResource(regionResId),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        },
-                        trailingIcon = {
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Outlined.SwapHoriz,
                                 contentDescription = stringResource(R.string.switch_client),
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            labelColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    )
+                        }
+                    }
                 }
             }
 

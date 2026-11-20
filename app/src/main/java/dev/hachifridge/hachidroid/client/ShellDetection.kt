@@ -233,12 +233,12 @@ object ShellDetection {
         val root = manifest.manifestElement ?: return null
         val code = runCatching {
             root.searchAttributeByResourceId(ATTR_VERSION_CODE)?.valueAsString
-        }.getOrNull()
+        }.getOrNull()?.takeIf { it != "null" && it.isNotBlank() }
         val name = runCatching {
             root.searchAttributeByResourceId(ATTR_VERSION_NAME)?.valueAsString
-        }.getOrNull()
+        }.getOrNull()?.takeIf { it != "null" && it.isNotBlank() }
         if (code.isNullOrEmpty() && name.isNullOrEmpty()) return null
-        return "${name.orEmpty()}/$code"
+        return if (code != null) "${name.orEmpty()}/$code" else name.orEmpty()
     }
 
     private fun ZipInputStream.readLimited(limit: Int): ByteArray? = readLimited(this, limit)

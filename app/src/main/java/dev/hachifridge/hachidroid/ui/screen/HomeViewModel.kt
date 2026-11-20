@@ -262,7 +262,8 @@ class HomeViewModel : ViewModel() {
         } else {
             info.versionCode.toLong()
         }
-        return "${info.versionName.orEmpty()}/$code"
+        val name = info.versionName.orEmpty()
+        return if (code > 0) "$name/$code" else name
     }
 
     private suspend fun refreshLibraries(context: Context) {
