@@ -90,6 +90,7 @@ import dev.hachifridge.hachidroid.MainViewModel
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
 import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.client.LibrarySet
 import dev.hachifridge.hachidroid.core.dataStore
@@ -140,13 +141,14 @@ fun PatchingStudioCard(
     navigator: Navigator,
     client: Client,
     homeViewModel: HomeViewModel,
-    libraries: LibrarySet.Status = client.libraries.emptyStatus(
-        shellProtected = client.alwaysShellProtected || homeViewModel.patchProtected
+    profile: ClientProfile = homeViewModel.profile,
+    libraries: LibrarySet.Status = profile.libraries.emptyStatus(
+        shellProtected = profile.shellProtected || homeViewModel.patchProtected
     )
 ) {
-    // Protection belongs to the build, not to the client: Tracen covers both Uma releases and
+    // Protection belongs to the build/profile: Tracen covers both Uma releases and
     // only the packed one needs the split-set flow.
-    val shellProtected = client.alwaysShellProtected || homeViewModel.patchProtected
+    val shellProtected = profile.shellProtected || homeViewModel.patchProtected
     // A packed build has to have its restored game files before anything is written. The mod
     // runtime is deliberately not part of this: the patcher syncs it itself and gates on it after
     // the download, so a missing runtime must not leave the button disabled.
@@ -164,13 +166,11 @@ fun PatchingStudioCard(
     var staleFilesError by remember { mutableStateOf<String?>(null) }
 
     // A packed install cannot be patched in place: its shell is only removed by rebuilding and
-    // reinstalling the split set. This is about the copy on the device, while the split-set scene
-    // below follows the picked build, so clearing the picker leaves the studio in its plain shape
-    // instead of describing whichever release happens to be installed.
+    // reinstalling the split set.
     val canPatchInstalled = isGameInstalled && !homeViewModel.installedTargetProtected
 
     // Target source: Installed Game vs External APK Files.
-    var targetSource by rememberSaveable(client) {
+    var targetSource by rememberSaveable(profile) {
         mutableStateOf(
             if (!shellProtected && canPatchInstalled && isRootAvailable) PatchTargetSource.INSTALLED
             else PatchTargetSource.FILES
@@ -185,26 +185,25 @@ fun PatchingStudioCard(
 
     val methods = if (shellProtected) PatcherInstallMethod.SPLIT_METHODS else PatcherInstallMethod.entries
 
-    val selectedMethodIndex = rememberSaveable(client) { mutableIntStateOf(PatcherInstallMethod.NORMAL.id) }
+    val selectedMethodIndex = rememberSaveable(profile) { mutableIntStateOf(PatcherInstallMethod.NORMAL.id) }
     val currentMethod = if (PatcherInstallMethod.fromId(selectedMethodIndex.intValue) in methods) {
         PatcherInstallMethod.fromId(selectedMethodIndex.intValue)
     } else {
         PatcherInstallMethod.NORMAL
     }
 
-    // Keyed on the client: the two families patch different games, so a picked split belongs to
-    // exactly one of them.
-    var fileUris by rememberSaveable(client) { mutableStateOf<Array<Uri>>(arrayOf()) }
+    // Keyed on the profile: preserves picks per server client profile (e.g. 1 GLB and 1 JP).
+    var fileUris by rememberSaveable(profile) { mutableStateOf<Array<Uri>>(arrayOf()) }
 
-    var stateLoaded by remember(client) { mutableStateOf(false) }
-    var installMethodLoaded by rememberSaveable(client) { mutableStateOf(false) }
+    var stateLoaded by remember(profile) { mutableStateOf(false) }
+    var installMethodLoaded by rememberSaveable(profile) { mutableStateOf(false) }
 
     val fileSelectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val newFileUris = uris.toTypedArray()
         for (uri in fileUris) releasePersistableUriPermission(context, uri)
         for (uri in newFileUris) tryTakePersistableUriPermission(context, uri)
         fileUris = newFileUris
-        coroutineScope.launch { saveFileUris(context, client, newFileUris) }
+        coroutineScope.launch { saveFileUris(context, profile, newFileUris) }
     }
 
     // Libraries are part of the studio now, so its section owns the picker as well.
@@ -214,65 +213,53 @@ fun PatchingStudioCard(
         if (uris.isNotEmpty()) homeViewModel.importLibraries(context, uris)
     }
 
-    // Restore this client's persisted state. Keyed on client, so switching families starts the new
-    // client from its own picks instead of inheriting the previous one's split APKs.
-    LaunchedEffect(client) {
-        if (!installMethodLoaded) {
-            val savedInstallMethod = (context.getPrefValue(PrefKey.installMethod(client)) as Int?)
-                ?: takeLegacyInstallMethod(context, client)
-            selectedMethodIndex.intValue = savedInstallMethod
-                ?.takeIf { PatcherInstallMethod.fromId(it) in methods }
-                ?: PatcherInstallMethod.NORMAL.id
-            installMethodLoaded = true
-        }
+    // Restore this profile's persisted state.
+    LaunchedEffect(profile) {
+        val savedInstallMethod = takeLegacyInstallMethod(context, profile)
+        selectedMethodIndex.intValue = savedInstallMethod
+            ?.takeIf { PatcherInstallMethod.fromId(it) in methods }
+            ?: PatcherInstallMethod.NORMAL.id
+        installMethodLoaded = true
 
-        if (fileUris.isEmpty()) {
-            // No default value exists for a per-client key, so an untouched client reads back as
-            // null rather than "". An empty string means the user cleared the picker, and must
-            // not fall back to the legacy slot.
-            val storedFileUris = (context.getPrefValue(PrefKey.fileUris(client)) as String?)
-                ?: takeLegacyFileUris(context, client)
-            val savedFileUris = storedFileUris
-                .split('\n')
-                .filter { it.isNotEmpty() }
-                .map { uri -> uri.toUri() }
-            val existingFileUris = mutableListOf<Uri>()
-            for (uri in savedFileUris) {
-                if (canOpenUri(context, uri)) {
-                    existingFileUris.add(uri)
-                } else {
-                    releasePersistableUriPermission(context, uri)
-                }
-            }
-            if (existingFileUris.size != savedFileUris.size) {
-                saveFileUris(context, client, existingFileUris.toTypedArray())
-            }
-            if (existingFileUris.isNotEmpty()) {
-                fileUris = existingFileUris.toTypedArray()
+        val storedFileUris = takeLegacyFileUris(context, profile)
+        val savedFileUris = storedFileUris
+            .split('\n')
+            .filter { it.isNotEmpty() }
+            .map { uri -> uri.toUri() }
+        val existingFileUris = mutableListOf<Uri>()
+        for (uri in savedFileUris) {
+            if (canOpenUri(context, uri)) {
+                existingFileUris.add(uri)
+            } else {
+                releasePersistableUriPermission(context, uri)
             }
         }
+        if (existingFileUris.size != savedFileUris.size) {
+            saveFileUris(context, profile, existingFileUris.toTypedArray())
+        }
+        fileUris = existingFileUris.toTypedArray()
         stateLoaded = true
     }
 
     // The studio's library section unpacks from these picks, and the build they belong to decides
     // which libraries are required, so the view model is kept in step here.
-    LaunchedEffect(fileUris, client) {
+    LaunchedEffect(fileUris, profile) {
         homeViewModel.updatePatchSplits(context, fileUris.toList())
     }
 
-    // Persist install method for this client only
-    LaunchedEffect(installMethodLoaded, client) {
+    // Persist install method for this profile
+    LaunchedEffect(installMethodLoaded, profile) {
         if (!installMethodLoaded) return@LaunchedEffect
         snapshotFlow { selectedMethodIndex.intValue }
             .drop(1)
             .collectLatest { methodId ->
-                saveInstallMethod(context, client, methodId)
+                saveInstallMethod(context, profile, methodId)
             }
     }
 
     // Shizuku permission listener. Disposable: Shizuku's dialog outlives this screen, and a grant
     // arriving after it was left used to launch a patch from a card that no longer exists.
-    DisposableEffect(navigator, currentMethod, fileUris) {
+    DisposableEffect(navigator, currentMethod, fileUris, profile) {
         MainActivity.onShizukuPermissionResult = { grantResult ->
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
                 PatcherLauncher.launch(
@@ -283,8 +270,8 @@ fun PatchingStudioCard(
                         directInstall = false,
                         shizukuInstall = true,
                         legacyInstall = false,
-                        client = client
-
+                        client = profile.client,
+                        profile = profile
                     )
                 )
             }
@@ -297,9 +284,8 @@ fun PatchingStudioCard(
     val selectedFilesUnavailable = stringResource(R.string.selected_files_no_longer_available)
     val pendingUpdateDeepLink by mainViewModel.pendingUpdateDeepLink
 
-    LaunchedEffect(pendingUpdateDeepLink, client) {
+    LaunchedEffect(pendingUpdateDeepLink, profile) {
         if (!pendingUpdateDeepLink) return@LaunchedEffect
-        if (client != Client.TRACEN) return@LaunchedEffect
         mainViewModel.pendingUpdateDeepLink.value = false
 
         // The saved method belongs to the build shape that was selected when it was chosen; a
@@ -321,8 +307,8 @@ fun PatchingStudioCard(
                 directInstall = method == PatcherInstallMethod.DIRECT,
                 shizukuInstall = method == PatcherInstallMethod.SHIZUKU,
                 legacyInstall = method == PatcherInstallMethod.LEGACY,
-                client = client
-
+                client = profile.client,
+                profile = profile
             )
         )
     }
@@ -680,7 +666,7 @@ fun PatchingStudioCard(
                                     onClick = {
                                         for (uri in fileUris) releasePersistableUriPermission(context, uri)
                                         fileUris = arrayOf()
-                                        coroutineScope.launch { saveFileUris(context, client, arrayOf()) }
+                                        coroutineScope.launch { saveFileUris(context, profile, arrayOf()) }
                                     }
                                 ) {
                                     Text(stringResource(R.string.clear_files), color = MaterialTheme.colorScheme.error)
@@ -769,7 +755,7 @@ fun PatchingStudioCard(
                         if (deadUris.isNotEmpty()) {
                             for (uri in deadUris) releasePersistableUriPermission(context, uri)
                             fileUris = aliveUris.toTypedArray()
-                            coroutineScope.launch { saveFileUris(context, client, aliveUris.toTypedArray()) }
+                            coroutineScope.launch { saveFileUris(context, profile, aliveUris.toTypedArray()) }
                             staleFilesError = selectedFilesUnavailable
                             return@Button
                         }
@@ -790,8 +776,8 @@ fun PatchingStudioCard(
                                     directInstall = false,
                                     shizukuInstall = true,
                                     legacyInstall = false,
-                                    client = client
-
+                                    client = profile.client,
+                                    profile = profile
                                 )
                             )
                         } else if (Shizuku.shouldShowRequestPermissionRationale()) {
@@ -808,8 +794,8 @@ fun PatchingStudioCard(
                                 directInstall = currentMethod == PatcherInstallMethod.DIRECT,
                                 shizukuInstall = false,
                                 legacyInstall = currentMethod == PatcherInstallMethod.LEGACY,
-                                client = client
-
+                                client = profile.client,
+                                profile = profile
                             )
                         )
                     }
@@ -1132,16 +1118,34 @@ private fun releasePersistableUriPermission(context: Context, uri: Uri) {
     }
 }
 
-private suspend fun saveFileUris(context: Context, client: Client, fileUris: Array<Uri>) {
+private suspend fun saveFileUris(context: Context, profile: ClientProfile, fileUris: Array<Uri>) {
     context.dataStore.edit {
-        it[PrefKey.fileUris(client)] = fileUris.joinToString("\n") { uri -> uri.toString() }
+        it[PrefKey.fileUris(profile)] = fileUris.joinToString("\n") { uri -> uri.toString() }
+        it[PrefKey.fileUris(profile.client)] = fileUris.joinToString("\n") { uri -> uri.toString() }
     }
 }
 
-private suspend fun saveInstallMethod(context: Context, client: Client, installMethod: Int) {
+private suspend fun saveInstallMethod(context: Context, profile: ClientProfile, installMethod: Int) {
     context.dataStore.edit {
-        it[PrefKey.installMethod(client)] = installMethod
+        it[PrefKey.installMethod(profile)] = installMethod
+        it[PrefKey.installMethod(profile.client)] = installMethod
     }
+}
+
+private suspend fun takeLegacyFileUris(context: Context, profile: ClientProfile): String {
+    val profileKeyVal = (context.getPrefValue(PrefKey.fileUris(profile)) as? String)?.ifEmpty { null }
+    if (profileKeyVal != null) return profileKeyVal
+    val clientKeyVal = (context.getPrefValue(PrefKey.fileUris(profile.client)) as? String)?.ifEmpty { null }
+    if (clientKeyVal != null) return clientKeyVal
+    return takeLegacyFileUris(context, profile.client)
+}
+
+private suspend fun takeLegacyInstallMethod(context: Context, profile: ClientProfile): Int? {
+    val profileMethod = (context.getPrefValue(PrefKey.installMethod(profile)) as? Int)
+    if (profileMethod != null) return profileMethod
+    val clientMethod = (context.getPrefValue(PrefKey.installMethod(profile.client)) as? Int)
+    if (clientMethod != null) return clientMethod
+    return takeLegacyInstallMethod(context, profile.client)
 }
 
 /**

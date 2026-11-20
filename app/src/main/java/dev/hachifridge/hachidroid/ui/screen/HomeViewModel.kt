@@ -22,6 +22,7 @@ import dev.hachifridge.hachidroid.client.ModSource
 import dev.hachifridge.hachidroid.client.ShellDetection
 import dev.hachifridge.hachidroid.core.GameChecker
 import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.client.PluginEntry
 import dev.hachifridge.hachidroid.client.LibrarySet
@@ -44,30 +45,33 @@ class HomeViewModel : ViewModel() {
     private val _plugins = MutableStateFlow<List<PluginEntry>>(emptyList())
     val plugins: StateFlow<List<PluginEntry>> = _plugins.asStateFlow()
 
-    /** Active client. Compose state because the hero card and the tiles both read it. */
-    var client by mutableStateOf(Client.TRACEN)
+    /** Active client profile / preset. */
+    var profile by mutableStateOf(ClientProfile.TRACEN_GLB)
         private set
 
-    private val _libraries = MutableStateFlow(client.libraries.emptyStatus(shellProtected = false))
+    /** Active client family, derived from [profile]. */
+    val client: Client
+        get() = profile.client
+
+    /** The distinct server clients installed on the device for this family. */
+    var installedProfiles by mutableStateOf<List<ClientProfile>>(emptyList())
+        private set
+
+    /** Presets activate only when more than one distinct server client in the same mode is installed. */
+    val hasMultipleProfiles: Boolean
+        get() = installedProfiles.size > 1
+
+    private val _libraries = MutableStateFlow(profile.libraries.emptyStatus(shellProtected = false))
     val libraries: StateFlow<LibrarySet.Status> = _libraries.asStateFlow()
 
     /**
      * Whether the build being patched is packer-protected.
-     *
-     * It is a property of the build, not of the client: Uma's Japan and Global releases are one
-     * [Client] and only Global carries the shell. The picked files are that build, so they decide;
-     * with nothing picked there is no build yet, and only a client whose every build is packed
-     * counts as protected. The installed copy is reported separately as
-     * [installedTargetProtected] so clearing the picker returns the studio to its plain shape
-     * instead of describing the Global build that happens to be installed.
      */
     var patchProtected by mutableStateOf(false)
         private set
 
     /**
-     * Whether the *installed* copy is packer-protected. Only the target picker uses this: a packed
-     * install cannot be injected in place, so it steers the studio to APK files. It never decides
-     * which libraries a patch of picked files needs.
+     * Whether the *installed* copy is packer-protected.
      */
     var installedTargetProtected by mutableStateOf(false)
         private set
@@ -118,23 +122,41 @@ class HomeViewModel : ViewModel() {
 
     fun refreshStatus(context: Context) {
         viewModelScope.launch {
+            val pm = context.packageManager
             val savedClient = Client.fromPref(context.getPrefValue(PrefKey.CLIENT) as? String)
-            // A target the user picked explicitly survives a restart. Honour it only while that
-            // package is installed; otherwise the client's first installed release takes over.
+            installedProfiles = ClientProfile.getInstalledProfiles(pm, savedClient)
+
+            val savedProfileId = context.getPrefValue(PrefKey.PROFILE) as? String
             val savedTarget = context.getPrefValue(PrefKey.TARGET_PACKAGE) as String
+
+            val initialProfile = when {
+                installedProfiles.size > 1 -> {
+                    val matchingSaved = savedProfileId?.let { id -> installedProfiles.find { it.id == id } }
+                    val matchingTarget = if (savedTarget.isNotEmpty()) installedProfiles.find { it.packageNames.contains(savedTarget) } else null
+                    matchingSaved ?: matchingTarget ?: installedProfiles.first()
+                }
+                installedProfiles.size == 1 -> {
+                    installedProfiles.first()
+                }
+                else -> {
+                    if (savedProfileId != null) ClientProfile.fromId(savedProfileId)
+                    else ClientProfile.defaultForClient(savedClient)
+                }
+            }
+
             if (savedTarget.isNotEmpty() &&
-                savedTarget in savedClient.packageNames &&
-                runCatching { context.packageManager.getPackageInfo(savedTarget, 0) }.isSuccess
+                savedTarget in initialProfile.packageNames &&
+                runCatching { pm.getPackageInfo(savedTarget, 0) }.isSuccess
             ) {
                 GameChecker.currentPackageName = savedTarget
             }
-            GameChecker.applyClient(savedClient, context.packageManager)
-            client = savedClient
-            _packageInfo.value = GameChecker.getPackageInfo(context.packageManager)
+            GameChecker.applyProfile(initialProfile, pm)
+            profile = initialProfile
+            _packageInfo.value = GameChecker.getPackageInfo(pm)
             syncTargetState()
             refreshLibraries(context)
             // Plugin bookkeeping reads plugins.json off disk; keep that off the main thread.
-            _plugins.value = withContext(Dispatchers.IO) { savedClient.plugins.listPlugins(context) }
+            _plugins.value = withContext(Dispatchers.IO) { initialProfile.plugins.listPlugins(context) }
             readModState(context)
         }
         observeClientChanges(context)
@@ -153,37 +175,31 @@ class HomeViewModel : ViewModel() {
                 .distinctUntilChanged()
                 .collectLatest { nextClient ->
                     if (client != nextClient) {
-                        client = nextClient
-                        GameChecker.applyClient(nextClient, context.packageManager)
-                        _packageInfo.value = GameChecker.getPackageInfo(context.packageManager)
-                        syncTargetState()
-                        refreshLibraries(context)
-                        _plugins.value = withContext(Dispatchers.IO) {
-                            nextClient.plugins.listPlugins(context)
-                        }
-                        readModState(context)
+                        setClient(context, nextClient)
                     }
                 }
         }
     }
 
     /**
-     * Switches client, persists it and re-resolves the target for the new one. The library
-     * checklist and the mod source are re-read too: both belong to the client.
+     * Switches the active profile and persists it.
      */
-    fun setClient(context: Context, next: Client) {
-        if (next == client) return
-        client = next
-        // Picks belong to the client they were made for; the new client's studio restores its own
-        // and reports them back through [updatePatchSplits].
+    fun setProfile(context: Context, next: ClientProfile) {
+        if (next == profile) return
+        profile = next
         patchSplits = emptyList()
         patchStamp = null
         splitsJob?.cancel()
-        GameChecker.applyClient(next, context.packageManager)
+        installedProfiles = ClientProfile.getInstalledProfiles(context.packageManager, next.client)
+        GameChecker.applyProfile(next, context.packageManager)
         _packageInfo.value = GameChecker.getPackageInfo(context.packageManager)
         syncTargetState()
         viewModelScope.launch {
-            context.dataStore.edit { it[PrefKey.CLIENT] = next.prefValue }
+            context.dataStore.edit {
+                it[PrefKey.PROFILE] = next.id
+                it[PrefKey.CLIENT] = next.client.prefValue
+                it[PrefKey.TARGET_PACKAGE] = next.defaultPackageName
+            }
             refreshLibraries(context)
             _plugins.value = withContext(Dispatchers.IO) { next.plugins.listPlugins(context) }
             readModState(context)
@@ -191,15 +207,23 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
-     * Re-resolves the installed copy and, while nothing is picked, the build the studio describes.
-     * Picked splits answer for themselves through [updatePatchSplits], so a Global copy still
-     * installed under the same client cannot turn the checklist back into Global's restored
-     * libraries while Japan's files are selected.
+     * Switches client family, persists it and re-resolves the profile for the new one.
      */
+    fun setClient(context: Context, next: Client) {
+        val pm = context.packageManager
+        val installed = ClientProfile.getInstalledProfiles(pm, next)
+        val targetProfile = if (installed.isNotEmpty()) {
+            installed.first()
+        } else {
+            ClientProfile.defaultForClient(next)
+        }
+        setProfile(context, targetProfile)
+    }
+
     private fun syncTargetState() {
-        installedTargetProtected = client.alwaysShellProtected ||
+        installedTargetProtected = profile.shellProtected ||
             ShellDetection.isPackedPackage(GameChecker.currentPackageName)
-        if (patchSplits.isEmpty()) patchProtected = client.alwaysShellProtected
+        if (patchSplits.isEmpty()) patchProtected = profile.shellProtected
     }
 
     /**
@@ -219,11 +243,11 @@ class HomeViewModel : ViewModel() {
      * picked there is no build to describe, and only a client whose every build is packed counts.
      */
     private suspend fun shapeOfPicks(context: Context, uris: List<Uri>): PickShape {
-        if (uris.isEmpty() && !client.alwaysShellProtected) {
+        if (uris.isEmpty() && !profile.shellProtected) {
             return PickShape(packed = false, stamp = null)
         }
         val info = withContext(Dispatchers.IO) { ShellDetection.inspect(context, uris) }
-        return PickShape(client.alwaysShellProtected || info.protected, info.versionStamp)
+        return PickShape(profile.shellProtected || info.protected, info.versionStamp)
     }
 
     /**
@@ -246,7 +270,7 @@ class HomeViewModel : ViewModel() {
         val picks = patchSplits
         val target = if (picks.isEmpty()) installedStamp(context) else patchStamp
         val status = withContext(Dispatchers.IO) {
-            client.libraries.inspect(context, shell, target)
+            profile.libraries.inspect(context, shell, target)
         }
         // A pick that changed while this ran owns the checklist; do not overwrite it — neither a
         // different build shape nor a different version.
@@ -257,7 +281,7 @@ class HomeViewModel : ViewModel() {
     }
 
     private suspend fun readModState(context: Context) {
-        val source = client.modSource
+        val source = profile.modSource
         modSourceKind = context.getPrefValue(source.sourceKey) as String
         modSoName = context.getPrefValue(source.nameKey) as String
         modRepo = context.getPrefValue(source.repoKey) as String
@@ -272,12 +296,12 @@ class HomeViewModel : ViewModel() {
     fun importLibraries(context: Context, uris: List<Uri>) {
         if (uris.isEmpty()) return
         val picks = patchSplits
-        val store = client.libraries
+        val store = profile.libraries
         viewModelScope.launch {
             // Resolved from the picks themselves: the asynchronous probe may not have landed yet.
             val shape = shapeOfPicks(context, picks)
             val protectedTarget = if (picks.isEmpty()) {
-                client.alwaysShellProtected || installedTargetProtected
+                profile.shellProtected || installedTargetProtected
             } else {
                 shape.packed
             }
@@ -313,7 +337,7 @@ class HomeViewModel : ViewModel() {
     /** Drops one library so a stale copy can be replaced instead of sitting in the way. */
     fun removeLibrary(context: Context, name: String) {
         viewModelScope.launch {
-            val store = client.libraries
+            val store = profile.libraries
             val removed = withContext(Dispatchers.IO) { store.remove(context, name) }
             refreshLibraries(context)
             if (removed) unpackError = null
@@ -345,7 +369,7 @@ class HomeViewModel : ViewModel() {
                 patchProtected = packed
                 patchStamp = shape.stamp
 
-                val store = client.libraries
+                val store = profile.libraries
                 // A packed build keeps its libraries in the config split and its metadata in the
                 // base one, so every pick is read: stopping at the first hit would leave the
                 // other missing.

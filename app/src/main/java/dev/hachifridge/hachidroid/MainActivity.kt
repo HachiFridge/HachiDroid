@@ -1,7 +1,10 @@
 package dev.hachifridge.hachidroid
 import androidx.lifecycle.lifecycleScope
 import androidx.datastore.preferences.core.edit
+import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.core.GameChecker
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 import android.content.Intent
@@ -139,11 +142,22 @@ class MainActivity : ComponentActivity() {
         val isUpdateScheme = uri.scheme == "hachidroid" || uri.scheme == "umapatcher-edge"
         if (!isUpdateScheme || uri.host != "update-hachimi") return
 
-        // Switch to the Tracen client so the Hachimi update targets Umamusume rather than
-        // whatever client was active previously (e.g. Astraea).
+        val callingPkg = uri.getQueryParameter("package")
+            ?: referrer?.host?.takeIf { host -> ClientProfile.entries.any { it.packageNames.contains(host) } }
+
         lifecycleScope.launch {
-            dataStore.edit { it[PrefKey.CLIENT] = Client.TRACEN.prefValue }
-            GameChecker.applyClient(Client.TRACEN, packageManager)
+            val targetProfile = if (callingPkg != null) {
+                ClientProfile.fromPackageName(callingPkg) ?: ClientProfile.TRACEN_GLB
+            } else {
+                val stored = dataStore.data.map { it[PrefKey.PROFILE] }.firstOrNull()
+                stored?.let { ClientProfile.fromId(it) } ?: GameChecker.profile
+            }
+            dataStore.edit {
+                it[PrefKey.PROFILE] = targetProfile.id
+                it[PrefKey.CLIENT] = targetProfile.client.prefValue
+                it[PrefKey.TARGET_PACKAGE] = targetProfile.defaultPackageName
+            }
+            GameChecker.applyProfile(targetProfile, packageManager)
             mainViewModel.pendingUpdateDeepLink.value = true
         }
     }

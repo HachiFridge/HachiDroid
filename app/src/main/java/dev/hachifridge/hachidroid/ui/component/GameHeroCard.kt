@@ -62,6 +62,7 @@ import dev.hachifridge.hachidroid.BuildConfig
 import dev.hachifridge.hachidroid.R
 import dev.hachifridge.hachidroid.core.GameChecker
 import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.client.ShellDetection
 import dev.hachifridge.hachidroid.ui.navigation.Destination
 import dev.hachifridge.hachidroid.ui.navigation.Navigator
@@ -80,7 +81,11 @@ fun GameHeroCard(
     shizukuAvailable: Boolean,
     rootAvailable: Boolean,
     rootInitialized: Boolean,
-    onUninstallRequest: () -> Unit
+    onUninstallRequest: () -> Unit,
+    profile: ClientProfile = ClientProfile.defaultForClient(client),
+    installedProfiles: List<ClientProfile> = emptyList(),
+    hasMultipleProfiles: Boolean = false,
+    onProfileChange: (ClientProfile) -> Unit = {}
 ) {
     val context = LocalContext.current
     val pm = context.packageManager
@@ -166,8 +171,20 @@ fun GameHeroCard(
                 }
                 Spacer(Modifier.weight(1f))
 
-                // Mode switches the whole dashboard identity, so it belongs in the card header.
-                ClientSelectorChip(client = client, onClientChange = onClientChange)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (hasMultipleProfiles) {
+                        ProfileSelectorChip(
+                            profile = profile,
+                            installedProfiles = installedProfiles,
+                            onProfileChange = onProfileChange
+                        )
+                    }
+                    // Mode switches the whole dashboard identity, so it belongs in the card header.
+                    ClientSelectorChip(client = client, onClientChange = onClientChange)
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -430,6 +447,67 @@ fun GameHeroCard(
                     // error in several palettes, so it read as a failure at a glance.
                     activeColor = successColor,
                     inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Dropdown switcher for distinct server client presets (e.g. 1 GLB and 1 JP).
+ * Only shown when more than one server client for the active mode is installed.
+ */
+@Composable
+private fun ProfileSelectorChip(
+    profile: ClientProfile,
+    installedProfiles: List<ClientProfile>,
+    onProfileChange: (ClientProfile) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.clickable { expanded = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+            ) {
+                Text(
+                    text = "${stringResource(profile.regionLabelRes)} (${profile.regionTag})",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Icon(
+                    imageVector = Icons.Outlined.ArrowDropDown,
+                    contentDescription = stringResource(R.string.preset_switch),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            installedProfiles.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.titleRes)) },
+                    onClick = {
+                        expanded = false
+                        onProfileChange(option)
+                    },
+                    trailingIcon = {
+                        if (option == profile) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 )
             }
         }

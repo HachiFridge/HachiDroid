@@ -10,6 +10,7 @@ import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.core.dataStore
 import androidx.datastore.preferences.core.edit
 import dev.hachifridge.hachidroid.client.Client
+import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.client.AstraeaLibraries
 import dev.hachifridge.hachidroid.patcher.RootUtils
 import kotlinx.coroutines.Dispatchers
@@ -51,18 +52,13 @@ class GameManagementViewModel : ViewModel() {
                     pkg.packageName
                 }
 
-                val (regionName, regionTag) = when (pkg.packageName) {
-                    "jp.co.cygames.umamusume" -> "Japan" to "JP"
-                    "com.komoe.kmumamusumegp" -> "Traditional Chinese" to "TW"
-                    "com.komoe.umamusumeofficial" -> "Traditional Chinese" to "TW"
-                    "com.cygames.umamusume" -> "Global" to "EN"
-                    "com.kakaogames.umamusume" -> "Korean" to "KR"
-                    "jp.co.cygames.princessconnectredive" -> "Japan" to "JP"
-                    else -> when (GameChecker.client) {
-                        Client.TRACEN -> "Umamusume" to "Custom"
-                        Client.ASTRAEA -> "Priconne" to "Custom"
+                val matchedProfile = ClientProfile.fromPackageName(pkg.packageName)
+                val regionTag = matchedProfile?.regionTag ?: "Custom"
+                val regionName = matchedProfile?.let { context.getString(it.regionLabelRes) }
+                    ?: when (GameChecker.client) {
+                        Client.TRACEN -> "UM:PD"
+                        Client.ASTRAEA -> "PC:RD"
                     }
-                }
 
                 val isPatched = checkIfPatched(pkg)
 
@@ -84,10 +80,19 @@ class GameManagementViewModel : ViewModel() {
 
     fun selectTarget(packageName: String, context: Context) {
         GameChecker.currentPackageName = packageName
-        // Remembered so the dashboard reopens on this release; Uma's two store builds share one
-        // client, and the first installed package would otherwise always win.
+        val matchedProfile = ClientProfile.fromPackageName(packageName)
+        if (matchedProfile != null) {
+            GameChecker.applyProfile(matchedProfile, context.packageManager)
+        }
+        // Remembered so the dashboard reopens on this release
         viewModelScope.launch {
-            context.dataStore.edit { it[PrefKey.TARGET_PACKAGE] = packageName }
+            context.dataStore.edit {
+                it[PrefKey.TARGET_PACKAGE] = packageName
+                if (matchedProfile != null) {
+                    it[PrefKey.PROFILE] = matchedProfile.id
+                    it[PrefKey.CLIENT] = matchedProfile.client.prefValue
+                }
+            }
         }
         loadApps(context)
     }

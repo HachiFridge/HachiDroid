@@ -132,17 +132,20 @@ fun HomeScreen(
                 shizukuAvailable = ShizukuState.isAvailable.value,
                 rootAvailable = mainViewModel.isRooted.value,
                 rootInitialized = mainViewModel.rootInitialized.value,
-                onUninstallRequest = { showUninstallConfirm = true }
+                onUninstallRequest = { showUninstallConfirm = true },
+                profile = viewModel.profile,
+                installedProfiles = viewModel.installedProfiles,
+                hasMultipleProfiles = viewModel.hasMultipleProfiles,
+                onProfileChange = { viewModel.setProfile(context, it) }
             )
 
             // 2. Modern Patching Studio: segmented target source, smart method selector, file
-            // drop-zone and the native-library gate. The client decides what the card offers:
-            // Astraea patches a Priconne split set, so root injection, the legacy installer and the
-            // installed-game target do not apply.
+            // drop-zone and the native-library gate.
             PatchingStudioCard(
                 navigator = navigator,
                 client = viewModel.client,
                 homeViewModel = viewModel,
+                profile = viewModel.profile,
                 libraries = libraries
             )
 
