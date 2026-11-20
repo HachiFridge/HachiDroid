@@ -33,6 +33,18 @@ internal object SenbeiNative {
     }
 
     /**
+     * Deobfuscates the il2cpp [input] metadata into [output]. Unlike [unpackLibrary] this always
+     * produces a file: the engine writes the restored blob even when nothing had to change.
+     */
+    fun restoreMetadata(input: String, output: String): MetadataReport {
+        if (!isAvailable) return MetadataReport(ok = false, error = "senbei_jni is not loaded")
+        val json = runCatching { nativeRestoreMetadata(input, output) }.getOrNull()
+            ?: return MetadataReport(ok = false, error = "the native restore returned no report")
+        return runCatching { gson.fromJson(json, MetadataReport::class.java) }.getOrNull()
+            ?: MetadataReport(ok = false, error = "the native restore returned an unreadable report")
+    }
+
+    /**
      * Decodes the bridge's JSON. Split out from [unpackLibrary] so the field contract can be
      * tested on a JVM without loading the native library.
      */
@@ -56,7 +68,21 @@ internal object SenbeiNative {
         @SerializedName("private_payload_section") val privatePayloadSection: Boolean = false
     )
 
+    /** What a metadata restore did; `remapped == 0` means the input was already clean. */
+    data class MetadataReport(
+        val ok: Boolean = false,
+        val error: String? = null,
+        val version: Int = 0,
+        val methods: Int = 0,
+        val modules: Int = 0,
+        val remapped: Int = 0,
+        @SerializedName("output_bytes") val outputBytes: Long = 0L,
+        @SerializedName("elapsed_ms") val elapsedMs: Long = 0L
+    )
+
     private external fun nativeIsProtectedLibrary(path: String): Boolean
+
+    private external fun nativeRestoreMetadata(input: String, output: String): String
 
     private external fun nativeUnpackLibrary(input: String, output: String, workDir: String): String
 }

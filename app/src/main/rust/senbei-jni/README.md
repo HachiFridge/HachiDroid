@@ -1,6 +1,6 @@
 # senbei-jni
 
-The JNI bridge HachiDroid uses to unpack CrackProof-protected PC:RD libraries on the device.
+The JNI bridge HachiDroid uses to restore protected game libraries and metadata assets on device.
 
 It is a thin seam, not a copy of Senbei: two exported functions (`nativeIsProtectedLibrary`,
 `nativeRestoreLibrary`) over `senbei_engine::android`, plus the Android-specific plumbing Senbei's

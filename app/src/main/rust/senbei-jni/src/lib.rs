@@ -1,8 +1,10 @@
 //! JNI bridge between HachiDroid and Senbei's Android unpack engine.
 //!
-//! Senbei does the work; this crate is the seam. It exposes exactly two operations — probe a
-//! library for the CrackProof payload, and write one usable library to a destination path — because
-//! that is the whole contract HachiDroid's Priconne flow needs. Both are deliberately shaped for
+//! Senbei does the work; this crate is the seam. It exposes exactly three operations — probe a
+//! library for a packed payload, write one usable library to a destination path, and restore
+//! an obfuscated il2cpp metadata blob — because that is the whole contract HachiDroid's packed
+//! clients need: PC:RD ships two protected images, and UM:PD's Global build additionally obfuscates
+//! its `global-metadata.dat`. All are deliberately shaped for
 //! Android: paths in, JSON out, no filesystem knowledge on the Kotlin side, and a scratch root
 //! the caller owns so nothing lands in `/tmp` (which does not exist on a device).
 //!
@@ -26,6 +28,7 @@ use memmap2::MmapOptions;
 use senbei_engine::android::{
     extract_stage2, is_protected_libil2cpp, restore_libil2cpp, ExtractOptions, RestoreOptions,
 };
+use senbei_io::android::restore_metadata_bytes;
 use serde::Serialize;
 
 /// Where the engine's intermediate container modules go, relative to the caller's scratch root.
@@ -49,6 +52,18 @@ struct UnpackFacts {
     dynamic_symbols: usize,
     dynamic_relocations: usize,
     private_payload_section: bool,
+}
+
+/// Successful metadata restore. `remapped == 0` means the input was already clean.
+#[derive(Debug, Serialize)]
+struct MetadataFacts {
+    ok: bool,
+    version: u32,
+    methods: usize,
+    modules: usize,
+    remapped: usize,
+    output_bytes: u64,
+    elapsed_ms: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,6 +102,71 @@ pub extern "system" fn Java_dev_hachifridge_hachidroid_core_senbei_SenbeiNative_
         Ok(value) => value.into_raw(),
         Err(_) => std::ptr::null_mut(),
     }
+}
+
+/// `SenbeiNative.nativeRestoreMetadata(input, output)` — returns a JSON document.
+#[no_mangle]
+pub extern "system" fn Java_dev_hachifridge_hachidroid_core_senbei_SenbeiNative_nativeRestoreMetadata(
+    mut env: JNIEnv,
+    _instance: JObject,
+    input: JString,
+    output: JString,
+) -> jstring {
+    let json = restore_metadata_json(&mut env, &input, &output);
+    match env.new_string(json) {
+        Ok(value) => value.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+fn restore_metadata_json(env: &mut JNIEnv, input: &JString, output: &JString) -> String {
+    let (input, output) = match (string_arg(env, input), string_arg(env, output)) {
+        (Some(input), Some(output)) => (input, output),
+        _ => return failure_json("arguments could not be read"),
+    };
+
+    let attempt = catch_unwind(AssertUnwindSafe(|| {
+        restore_metadata(Path::new(&input), Path::new(&output))
+    }));
+
+    match attempt {
+        Ok(Ok(facts)) => serde_json::to_string(&facts)
+            .unwrap_or_else(|error| failure_json(&format!("report encoding failed: {error}"))),
+        Ok(Err(error)) => failure_json(&error),
+        Err(_) => failure_json("metadata restore aborted by an internal panic"),
+    }
+}
+
+/// Deobfuscates one il2cpp `global-metadata.dat`, leaving the restored blob at `output`.
+///
+/// The engine always writes: an already-clean input comes back byte-identical with
+/// `remapped == 0`, and the caller stores the result either way instead of having to tell the two
+/// cases apart.
+fn restore_metadata(input: &Path, output: &Path) -> Result<MetadataFacts, String> {
+    if !input.is_file() {
+        return Err(format!("input is not a file: {}", input.display()));
+    }
+    let started = Instant::now();
+
+    let data = std::fs::read(input).map_err(|error| format!("read metadata: {error}"))?;
+    let (restored, report) = restore_metadata_bytes(&data)
+        .map_err(|error| format!("metadata restore failed: {error:#}"))?;
+
+    if let Some(parent) = output.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("create output directory: {error}"))?;
+    }
+    std::fs::write(output, &restored).map_err(|error| format!("write output: {error}"))?;
+
+    Ok(MetadataFacts {
+        ok: true,
+        version: report.version,
+        methods: report.methods,
+        modules: report.modules,
+        remapped: report.remapped,
+        output_bytes: restored.len() as u64,
+        elapsed_ms: started.elapsed().as_millis().min(u64::MAX as u128) as u64,
+    })
 }
 
 fn unpack_json(env: &mut JNIEnv, input: &JString, output: &JString, work_dir: &JString) -> String {
@@ -168,7 +248,7 @@ fn unpack(input: &Path, output: &Path, work_dir: &Path) -> Result<UnpackFacts, S
     })
 }
 
-/// True when `path` is an ELF64/AArch64 image carrying a CrackProof payload section.
+/// True when `path` is an ELF64/AArch64 image carrying a packed payload section.
 fn probe(path: &Path) -> bool {
     let Ok(file) = std::fs::File::open(path) else {
         return false;
@@ -242,6 +322,15 @@ mod tests {
     }
 
     #[test]
+    fn reports_a_missing_metadata_input_as_a_failure() {
+        let root = temp_root("metadata-missing");
+        let error = restore_metadata(&root.join("absent.dat"), &root.join("out.dat"))
+            .expect_err("a missing input must fail");
+        assert!(error.contains("not a file"), "unexpected error: {error}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn reports_a_missing_input_as_a_failure() {
         let root = temp_root("missing");
         let error = unpack(
@@ -251,6 +340,28 @@ mod tests {
         )
         .expect_err("a missing input must fail");
         assert!(error.contains("not a file"), "unexpected error: {error}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Opt-in on purpose: the fixture is a real 30 MB obfuscated metadata blob, which this
+    /// repository must never carry. Run with
+    /// `SENBEI_TEST_METADATA=/path/to/global-metadata.dat cargo test --release`.
+    #[test]
+    fn restores_a_supplied_obfuscated_metadata() {
+        let Ok(source) = std::env::var("SENBEI_TEST_METADATA") else {
+            return;
+        };
+        let root = temp_root("metadata-restore");
+        let output = root.join("global-metadata.dat");
+
+        let facts = restore_metadata(Path::new(&source), &output).expect("restore");
+        assert!(facts.ok);
+        assert_eq!(facts.version, 31, "unexpected metadata version");
+        assert!(facts.remapped > 0, "the input was not obfuscated");
+        assert_eq!(
+            output.metadata().expect("output metadata").len(),
+            facts.output_bytes
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
