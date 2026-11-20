@@ -16,7 +16,7 @@ Siguraduhing naka-install ang mga sumusunod na tool sa iyong computer:
   - SDK Platform: `platforms;android-37` (Android 17)
   - Build Tools: `build-tools;37.0.0`
   - Platform Tools: `platform-tools`
-- **Android NDK** *(opsyonal — para lang sa on-device unpack ng Astraea)*: r29 o mas bago (nasubukan sa r30). Kailangan ang r27 pataas para sa 16 KB page alignment.
+- **Android NDK** *(opsyonal — para lang sa on-device unpack ng Astraea at UM:PD Global)*: r29 o mas bago (nasubukan sa r30). Kailangan ang r27 pataas para sa 16 KB page alignment.
 - **Rust toolchain** *(opsyonal — parehong feature)*: stable na Rust 1.85+ na may target na `aarch64-linux-android` (`rustup target add aarch64-linux-android`).
 - **Git**: Para sa version control.
 
@@ -75,7 +75,7 @@ Kung hindi tinukoy ang `SIGNING_KEY_FILE`, gagamitin ng release build ang kasama
 
 ### Native bridge (opsyonal)
 
-Nasa `app/src/main/rust/senbei-jni` ang on-device na pag-unpack ng library ng Astraea; binubuo ito ng `buildSenbeiJni` Gradle task gamit ang Cargo patungong `lib/arm64-v8a/libsenbei_jni.so`.
+Nasa `app/src/main/rust/senbei-jni` ang on-device na pag-unpack ng library ng Astraea at UM:PD Global; binubuo ito ng `buildSenbeiJni` Gradle task gamit ang Cargo patungong `lib/arm64-v8a/libsenbei_jni.so`.
 
 ```bash
 rustup target add aarch64-linux-android

@@ -26,7 +26,7 @@ HachiDroid 是一个开源 Android 应用，用于向移动游戏客户端注入
   - 日服 (JP)
   - 繁中服 (TW / HK)
   - 韩服 (KR)
-  - 国际服 (EN)
+  - 国际服 (EN) — 受外壳加固，补丁会首先从游戏的拆分包中还原 `libil2cpp.so` 与 `global-metadata.dat`
 - **灵活的补丁目标**：
   - **已安装的游戏**：直接检测并修补设备上已安装的客户端。
   - **APK 文件**：支持选择并修补单 APK、拆分 APK 安装包或 XAPK 文件。
@@ -44,7 +44,9 @@ HachiDroid 是一个开源 Android 应用，用于向移动游戏客户端注入
 - **现代存储与 DocumentsProvider**：可选导出 DocumentsProvider，允许文件管理器访问 `/data/data`（Android 16 QPR2+ 及 Android 17+ 必需）。
 - **UmaPatcher-Edge 迁移**：一键自动从旧版 UmaPatcher-Edge 迁移签名密钥库、插件和配置偏好。
 - **游戏模式**：Tracen（UM:PD · Hachimi）与 Astraea（PC:RD 日服 · DaringTact），各有独立配色与仪表盘。
-- **设备内库解包（Astraea）**：通过内置的 [Senbei](https://github.com/Tenshou170/Senbei) 引擎，直接从游戏的 arm64 拆分包中解包受 CrackProof 保护的 `libil2cpp.so` 与 `libnative.so`，无需电脑工具，也无需重新上传任何文件。仅支持 arm64 设备。
+- **设备内库解包（Astraea 与 UM:PD 国际服）**：
+  - 通过内置的 [Senbei](https://github.com/Tenshou170/Senbei) 引擎，直接从游戏的 arm64 拆分包中解包受保护的 `libil2cpp.so` 与 `libnative.so`，无需电脑工具，也无需重新上传任何文件（仅支持 arm64 设备）。
+  - 同样支持从拆分包或 XAPK 中还原 UM:PD 国际服加密的 `libil2cpp.so` 与被混淆的 `global-metadata.dat`。
 - **单向补丁警告**：Astraea 模式会明确提示，已打补丁的 PC:RD 无法恢复原版；若要游玩原版，需从 Play 商店重新安装。
 
 ---
@@ -55,10 +57,16 @@ HachiDroid 是一个开源 Android 应用，用于向移动游戏客户端注入
 
 | 模式 | 游戏 | 运行时 | 状态 |
 | :--- | :--- | :--- | :--- |
-| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | 完整补丁流程 |
+| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | 完整补丁流程（已安装应用与文件；国际服修补拆分包） |
 | **Astraea** | PC:RD（日服） | DaringTact | 拆分包补丁、库文件解包、安装或导出 |
 
-Astraea 打的是游戏的拆分包，而不是已安装的应用：base 拆分包会换上干净的 Application 类，并改写清单以绕过 CrackProof 外壳；arm64 config 拆分包则会删除 `lib__*__.so` 桩库，并写入 `libil2cpp.so`、`libnative.so` 和 `libdaringtact.so`。结果会重新签名，可通过 Shizuku、系统安装程序安装，或导出为拆分包 APK / XAPK。
+> [!NOTE]
+> **Astraea 补丁架构**  
+> Astraea 打的是游戏的拆分包，而不是已安装的应用：base 拆分包会换上干净的 Application 类，并改写清单以绕过原生加固外壳；arm64 config 拆分包则会删除 `lib__*__.so` 桩库，并写入 `libil2cpp.so`、`libnative.so` 和 `libdaringtact.so`。结果会重新签名，可通过 Shizuku、系统安装程序安装，或导出为拆分包 APK / XAPK。
+
+> [!NOTE]
+> **UM:PD 国际服 (EN) 补丁架构**  
+> 国际服的构建方式与 Astraea 类似：原生加固层接管了 `Application` 并加密了 `libil2cpp.so`。因此补丁会使用干净的 Application 类、Senbei 还原的 `libil2cpp.so` 以及还原后的 `global-metadata.dat` 重新打包拆分包。补丁工作室会直接从游戏拆分包中提取这两个还原文件，生成的文件会由你自己的密钥签名，因此必须先卸载商店版游戏。还原文件仅对应提取它的游戏版本，若游戏更新，工作室会提示文件过期。
 
 应用内也会明确说明两点：补丁版用你的密钥签名，无法更新商店版本（请先卸载游戏）；也没有原版还原——补丁移除的外壳无法恢复，唯一的办法是从 Play 商店重新安装。
 
@@ -113,4 +121,4 @@ cd HachiDroid
 
 ### Senbei 桥接
 
-可选的设备内还原会链接 CrackProof 解包工具 [Senbei](https://github.com/Tenshou170/Senbei)（**AGPL-3.0-only**）。因此包含 `libsenbei_jni.so` 的构建在上面的 GPL-3.0 之外还需遵守 AGPL-3.0；详见 [NOTICE](../NOTICE)。没有 Rust 工具链时，该桥接不会被包含。
+可选的设备内还原会链接静态还原引擎 [Senbei](https://github.com/Tenshou170/Senbei)（**AGPL-3.0-only**）。因此包含 `libsenbei_jni.so` 的构建在上面的 GPL-3.0 之外还需遵守 AGPL-3.0；详见 [NOTICE](../NOTICE)。没有 Rust 工具链时，该桥接不会被包含。

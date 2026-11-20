@@ -22,7 +22,7 @@ The following Android SDK components must be installed:
 - **Platform-Tools**
 
 ### 3. Native Bridge Toolchain (Optional)
-Required only for compiling the embedded Senbei unpacker bridge (`libsenbei_jni.so`) used by Astraea on-device library unpacking:
+Required only for compiling the embedded Senbei unpacker bridge (`libsenbei_jni.so`) used by Astraea and UM:PD Global on-device library unpacking:
 - **Android NDK**: r29 or newer (tested with r30; r27+ required for 16 KB page alignment).
 - **Rust Toolchain**: Stable Rust 1.85+ with the `aarch64-linux-android` target:
   ```bash
@@ -137,7 +137,7 @@ Output APK: `app/build/outputs/apk/release/app-release.apk`
 
 ### Native Bridge (Optional)
 
-Astraea's on-device library unpacking crate lives in `app/src/main/rust/senbei-jni` and is compiled automatically by the `buildSenbeiJni` Gradle task when Cargo and NDK are present:
+The on-device library unpacking crate lives in `app/src/main/rust/senbei-jni` and is compiled automatically by the `buildSenbeiJni` Gradle task when Cargo and NDK are present:
 
 ```bash
 cargo test --release --manifest-path app/src/main/rust/senbei-jni/Cargo.toml

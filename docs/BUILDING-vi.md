@@ -16,7 +16,7 @@
   - Nền tảng SDK: `platforms;android-37` (Android 17)
   - Công cụ xây dựng: `build-tools;37.0.0`
   - Công cụ nền tảng: `platform-tools`
-- **Android NDK** *(tùy chọn — chỉ cho khôi phục trên thiết bị của Astraea)*: r29 trở lên (đã kiểm tra với r30). Cần tối thiểu r27 để căn trang 16 KB.
+- **Android NDK** *(tùy chọn — chỉ cho khôi phục trên thiết bị của Astraea và UM:PD Global)*: r29 trở lên (đã kiểm tra với r30). Cần tối thiểu r27 để căn trang 16 KB.
 - **Bộ công cụ Rust** *(tùy chọn — cùng tính năng)*: Rust 1.85+ bản ổn định với target `aarch64-linux-android` (`rustup target add aarch64-linux-android`).
 - **Git**: Dùng để quản lý mã nguồn.
 
@@ -75,7 +75,7 @@ Nếu không chỉ định `SIGNING_KEY_FILE`, bản phát hành sẽ tự độ
 
 ### Cầu nối native (tùy chọn)
 
-Tính năng khôi phục thư viện trên thiết bị của Astraea nằm ở `app/src/main/rust/senbei-jni`; tác vụ Gradle `buildSenbeiJni` biên dịch nó bằng Cargo thành `lib/arm64-v8a/libsenbei_jni.so`.
+Tính năng khôi phục thư viện trên thiết bị cho Astraea và UM:PD Global nằm ở `app/src/main/rust/senbei-jni`; tác vụ Gradle `buildSenbeiJni` biên dịch nó bằng Cargo thành `lib/arm64-v8a/libsenbei_jni.so`.
 
 ```bash
 rustup target add aarch64-linux-android

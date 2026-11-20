@@ -16,7 +16,7 @@
   - SDK 플랫폼: `platforms;android-37` (Android 17)
   - 빌드 도구: `build-tools;37.0.0`
   - 플랫폼 도구: `platform-tools`
-- **Android NDK** *(선택 — Astraea의 기기 내 복원 전용)*: r29 이상(r30에서 확인). 16 KB 페이지 정렬을 위해 r27 이상이 필요합니다.
+- **Android NDK** *(선택 — Astraea 및 UM:PD Global의 기기 내 복원 전용)*: r29 이상(r30에서 확인). 16 KB 페이지 정렬을 위해 r27 이상이 필요합니다.
 - **Rust 툴체인** *(선택 — 같은 기능)*: 안정판 Rust 1.85 이상과 `aarch64-linux-android` 타깃(`rustup target add aarch64-linux-android`).
 - **Git**: 버전 관리용.
 
@@ -75,7 +75,7 @@ export SIGNING_KEY_PASSWORD="your_key_password"
 
 ### 네이티브 브리지 (선택)
 
-Astraea의 기기 내 라이브러리 복원은 `app/src/main/rust/senbei-jni`에 있으며, `buildSenbeiJni` Gradle 태스크가 Cargo로 컴파일해 `lib/arm64-v8a/libsenbei_jni.so`로 만듭니다.
+Astraea 및 UM:PD Global의 기기 내 라이브러리 복원은 `app/src/main/rust/senbei-jni`에 있으며, `buildSenbeiJni` Gradle 태스크가 Cargo로 컴파일해 `lib/arm64-v8a/libsenbei_jni.so`로 만듭니다.
 
 ```bash
 rustup target add aarch64-linux-android

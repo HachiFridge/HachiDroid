@@ -28,7 +28,7 @@
   - Japan (JP)
   - Traditional Chinese (TW / HK)
   - Korean (KR)
-  - Global (EN)
+  - Global (EN) — packed, so a patch restores its `libil2cpp.so` and `global-metadata.dat` from the game's splits first
 - **Flexible Patch Targets**:
   - **Installed Game**: Directly inspect and patch the client already installed on your device.
   - **APK Files**: Select and patch standalone APKs, split APK bundles, or XAPK files.
@@ -42,8 +42,9 @@
   - **Automated Mod Updates**: Automatically fetch and update the latest Hachimi-Edge or DaringTact runtime from GitHub releases.
   - **Local Binaries**: Sideload and test local custom `.so` binaries with one tap.
   - **Plugin System**: Sideload and manage extra native `.so` plugins with individual toggle controls.
-- **On-Device Library Unpacking (Astraea)**:
-  - Unpacks the CrackProof-protected `libil2cpp.so` and `libnative.so` straight from the game's arm64 split using an embedded [Senbei](https://github.com/Tenshou170/Senbei) engine — no desktop tools or manual dump transfers required (arm64 devices only).
+- **On-Device Library Unpacking (Astraea & UM:PD Global)**:
+  - Restores protected `libil2cpp.so` and `libnative.so` straight from the game's arm64 split using an embedded [Senbei](https://github.com/Tenshou170/Senbei) engine — no desktop tools or manual dump transfers required (arm64 devices only).
+  - Restores UM:PD Global's encrypted `libil2cpp.so` and its obfuscated `global-metadata.dat` the same way, from the split APKs or from an XAPK.
 - **Modern Storage & DocumentsProvider**:
   - Optional DocumentsProvider export allowing file managers access to `/data/data` (required for Android 16 QPR2+ and Android 17+).
 - **Built-in App Updater**:
@@ -59,12 +60,16 @@ The dropdown in the hero card picks the game family, and the choice runs through
 
 | Mode | Game | Runtime | Supported Flow |
 | :--- | :--- | :--- | :--- |
-| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | Full patch flow (Installed app & files) |
+| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | Full patch flow (installed app & files); Global patches the split set |
 | **Astraea** | PC:RD (JP) | DaringTact | Split patching, library unpacking, install or export |
 
 > [!NOTE]
 > **Astraea Patching Architecture**  
-> Astraea patches the split set instead of an installed app: the base split gets a clean Application class and a manifest redirect past the CrackProof shell, and the arm64 config split gets `libil2cpp.so`, `libnative.so`, and `libdaringtact.so` written in with the `lib__*__.so` stubs removed. The result is re-signed and installs through Shizuku, the system package installer, or an export as split APKs / an XAPK.
+> Astraea patches the split set instead of an installed app: the base split gets a clean Application class and a manifest redirect past the native shell wrapper, and the arm64 config split gets `libil2cpp.so`, `libnative.so`, and `libdaringtact.so` written in with the `lib__*__.so` stubs removed. The result is re-signed and installs through Shizuku, the system package installer, or an export as split APKs / an XAPK.
+
+> [!NOTE]
+> **UM:PD Global (EN) Patching Architecture**  
+> Global is built like Astraea: a native packer owns `Application` and encrypts `libil2cpp.so`, so a patch rebuilds the splits with a clean Application class, the Senbei-restored `libil2cpp.so`, and a deobfuscated `global-metadata.dat`. The studio unpacks both restored files from the game's splits, the result is signed with your key, and the store copy must be uninstalled first. The restored files belong to the game version they came from, so the studio warns once a game update makes them stale.
 
 > [!WARNING]
 > **Important Notices for Astraea Mode**  
@@ -127,4 +132,4 @@ cd HachiDroid
 Distributed under the **GNU General Public License v3.0 (GPL-3.0)** — see the [LICENSE](LICENSE) and [NOTICE](NOTICE) files for details.
 
 ### Senbei Bridge (AGPL-3.0)
-The optional on-device unpacking links [Senbei](https://github.com/Tenshou170/Senbei), a CrackProof unpacker licensed under **AGPL-3.0-only**. A build that packages `libsenbei_jni.so` therefore carries AGPL-3.0 obligations alongside the GPL-3.0 above; see [NOTICE](NOTICE). Builds made without the Rust toolchain omit the bridge entirely and fall back to libraries the user supplies.
+The optional on-device unpacking links [Senbei](https://github.com/Tenshou170/Senbei), a static restoration engine licensed under **AGPL-3.0-only**. A build that packages `libsenbei_jni.so` therefore carries AGPL-3.0 obligations alongside the GPL-3.0 above; see [NOTICE](NOTICE). Builds made without the Rust toolchain omit the bridge entirely and fall back to libraries the user supplies.

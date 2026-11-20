@@ -26,7 +26,7 @@ HachiDroid là ứng dụng Android mã nguồn mở giúp chèn và vá runtime
   - Bản Nhật (JP)
   - Bản Phồn thể (TW / HK)
   - Bản Hàn (KR)
-  - Bản Quốc tế (EN)
+  - Bản Quốc tế (EN) — được đóng gói/bảo vệ, do đó bản vá sẽ khôi phục `libil2cpp.so` và `global-metadata.dat` từ APK chia nhỏ của game trước
 - **Mục tiêu vá linh hoạt**:
   - **Game đã cài đặt**: Trực tiếp nhận diện và vá client đã có trên thiết bị.
   - **Tệp APK**: Hỗ trợ chọn và vá tệp APK đơn, bộ split APK hoặc tệp XAPK.
@@ -44,7 +44,9 @@ HachiDroid là ứng dụng Android mã nguồn mở giúp chèn và vá runtime
 - **Lưu trữ hiện đại & DocumentsProvider**: Tùy chọn xuất DocumentsProvider cho phép các ứng dụng quản lý tệp truy cập vào thư mục `/data/data` (cần thiết cho Android 16 QPR2+ và Android 17+).
 - **Chuyển đổi từ UmaPatcher-Edge**: Tự động chuyển đổi kho khóa ký (keystore), plugin và cài đặt từ phiên bản UmaPatcher-Edge cũ.
 - **Chế độ game**: Tracen (UM:PD · Hachimi) và Astraea (PC:RD JP · DaringTact) với bảng màu và dashboard riêng.
-- **Giải nén thư viện trên thiết bị (Astraea)**: công cụ [Senbei](https://github.com/Tenshou170/Senbei) tích hợp giải nén `libil2cpp.so` và `libnative.so` được CrackProof bảo vệ ngay từ APK config arm64 của game — không cần công cụ trên PC và không phải tải lại tệp của ai. Chỉ hỗ trợ thiết bị arm64.
+- **Giải nén thư viện trên thiết bị (Astraea & UM:PD Global)**:
+  - Công cụ [Senbei](https://github.com/Tenshou170/Senbei) tích hợp khôi phục `libil2cpp.so` và `libnative.so` được bảo vệ ngay từ APK config arm64 của game — không cần công cụ trên PC và không phải tải lại tệp (chỉ hỗ trợ thiết bị arm64).
+  - Đồng thời khôi phục `libil2cpp.so` đã mã hóa và `global-metadata.dat` bị xáo trộn của UM:PD Global từ APK chia nhỏ hoặc XAPK.
 - **Cảnh báo vá một chiều**: chế độ Astraea nêu rõ không thể đưa PC:RD đã vá về bản gốc; muốn chơi bản gốc phải cài lại từ Play Store.
 
 ---
@@ -55,10 +57,16 @@ Chọn dòng game trong menu thả xuống trên thẻ hero; lựa chọn áp d�
 
 | Chế độ | Game | Runtime | Trạng thái |
 | :--- | :--- | :--- | :--- |
-| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | Đầy đủ luồng vá |
+| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | Đầy đủ luồng vá (ứng dụng đã cài đặt và tệp; Global vá bộ chia nhỏ) |
 | **Astraea** | PC:RD (JP) | DaringTact | Vá APK chia nhỏ, giải nén thư viện, cài đặt hoặc xuất tệp |
 
-Astraea vá bộ APK chia nhỏ của game chứ không phải ứng dụng đã cài: base nhận một lớp Application sạch và chỉnh manifest để vượt qua lớp vỏ CrackProof, còn config arm64 thì xóa các stub `lib__*__.so` và ghi vào `libil2cpp.so`, `libnative.so`, `libdaringtact.so`. Kết quả được ký lại và có thể cài qua Shizuku, trình cài đặt hệ thống, hoặc xuất thành APK chia nhỏ / XAPK.
+> [!NOTE]
+> **Kiến trúc vá của Astraea**  
+> Astraea vá bộ APK chia nhỏ của game chứ không phải ứng dụng đã cài: base nhận một lớp Application sạch và chỉnh manifest để vượt qua lớp vỏ bảo vệ gốc, còn config arm64 thì xóa các stub `lib__*__.so` và ghi vào `libil2cpp.so`, `libnative.so`, `libdaringtact.so`. Kết quả được ký lại và có thể cài qua Shizuku, trình cài đặt hệ thống, hoặc xuất thành APK chia nhỏ / XAPK.
+
+> [!NOTE]
+> **Kiến trúc vá của UM:PD Global (EN)**  
+> Global được cấu trúc tương tự Astraea: trình đóng gói gốc kiểm soát `Application` và mã hóa `libil2cpp.so`. Do đó, bản vá tái tạo bộ APK chia nhỏ với lớp Application sạch, `libil2cpp.so` được Senbei khôi phục và `global-metadata.dat` đã giải mã. Studio giải nén cả hai tệp khôi phục trực tiếp từ bộ APK chia nhỏ, sau đó ký lại bằng khóa của bạn; bản cài đặt từ cửa hàng phải được gỡ bỏ trước. Các tệp khôi phục gắn liền với phiên bản game nguồn, vì vậy studio sẽ cảnh báo khi game cập nhật làm chúng lỗi thời.
 
 Hai hệ quả cũng được nêu ngay trong ứng dụng: bản đã vá được ký bằng khóa của bạn nên không thể cập nhật bản từ cửa hàng (hãy gỡ game trước), và không có khôi phục bản gốc — lớp vỏ mà bản vá loại bỏ là mất hẳn, cách duy nhất để quay lại là cài lại từ Play Store.
 
@@ -113,4 +121,4 @@ Dự án này được cấp phép theo Giấy phép GNU General Public License 
 
 ### Cầu nối Senbei
 
-Tính năng khôi phục trên thiết bị (tùy chọn) liên kết [Senbei](https://github.com/Tenshou170/Senbei), công cụ giải nén CrackProof theo giấy phép **AGPL-3.0-only**. Vì vậy bản dựng kèm `libsenbei_jni.so` phải tuân thủ AGPL-3.0 bên cạnh GPL-3.0 ở trên; xem [NOTICE](../NOTICE). Nếu không có bộ công cụ Rust, cầu nối này không được đóng gói.
+Tính năng khôi phục trên thiết bị (tùy chọn) liên kết [Senbei](https://github.com/Tenshou170/Senbei), công cụ khôi phục tĩnh theo giấy phép **AGPL-3.0-only**. Vì vậy bản dựng kèm `libsenbei_jni.so` phải tuân thủ AGPL-3.0 bên cạnh GPL-3.0 ở trên; xem [NOTICE](../NOTICE). Nếu không có bộ công cụ Rust, cầu nối này không được đóng gói.

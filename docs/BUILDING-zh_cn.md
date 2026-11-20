@@ -16,7 +16,7 @@
   - SDK 平台：`platforms;android-37` (Android 17)
   - 构建工具：`build-tools;37.0.0`
   - 平台工具：`platform-tools`
-- **Android NDK** *（可选 — 仅用于 Astraea 的设备内还原）*：r29 或更高（已在 r30 上验证）。16 KB 页对齐要求 r27 以上。
+- **Android NDK** *（可选 — 仅用于 Astraea 与 UM:PD Global 的设备内还原）*：r29 或更高（已在 r30 上验证）。16 KB 页对齐要求 r27 以上。
 - **Rust 工具链** *（可选 — 同一功能）*：稳定版 Rust 1.85 以上，并安装 `aarch64-linux-android` 目标（`rustup target add aarch64-linux-android`）。
 - **Git**：版本控制工具。
 
@@ -75,7 +75,7 @@ export SIGNING_KEY_PASSWORD="your_key_password"
 
 ### 原生桥接（可选）
 
-Astraea 的设备内库还原位于 `app/src/main/rust/senbei-jni`，由 `buildSenbeiJni` Gradle 任务通过 Cargo 编译为 `lib/arm64-v8a/libsenbei_jni.so`。
+Astraea 与 UM:PD Global 的设备内库还原位于 `app/src/main/rust/senbei-jni`，由 `buildSenbeiJni` Gradle 任务通过 Cargo 编译为 `lib/arm64-v8a/libsenbei_jni.so`。
 
 ```bash
 rustup target add aarch64-linux-android

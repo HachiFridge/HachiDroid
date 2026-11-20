@@ -26,7 +26,7 @@
   - 일본판 (JP)
   - 번체 중국어판 (TW / HK)
   - 한국판 (KR)
-  - 글로벌판 (EN)
+  - 글로벌판 (EN) — 패커로 보호되어 있어, 패치 시 먼저 게임의 분할 APK에서 `libil2cpp.so`와 `global-metadata.dat`를 복원합니다
 - **유연한 패치 대상**:
   - **설치된 게임**: 기기에 이미 설치된 클라이언트를 직접 감지하여 패치.
   - **APK 파일**: 단일 APK, 분할 APK 번들 또는 XAPK 파일을 직접 선택하여 패치.
@@ -44,7 +44,9 @@
 - **최신 저장소 및 DocumentsProvider**: 파일 관리자에서 `/data/data`에 접근할 수 있도록 하는 DocumentsProvider 내보내기(Android 16 QPR2+ 및 Android 17+ 필수).
 - **UmaPatcher-Edge 마이그레이션**: 기존 UmaPatcher-Edge 설치로부터 서명 키스토어, 플러그인, 설정을 원클릭으로 자동 이전.
 - **게임 모드**: 모드별 팔레트와 대시보드를 갖춘 Tracen(UM:PD · Hachimi)과 Astraea(PC:RD JP · DaringTact).
-- **기기 내 라이브러리 풀기 (Astraea)**: 내장 [Senbei](https://github.com/Tenshou170/Senbei) 엔진으로 CrackProof로 보호된 `libil2cpp.so`와 `libnative.so`를 게임의 arm64 스플릿에서 직접 풉니다. PC 도구도, 다시 업로드할 필요도 없습니다. arm64 기기 전용.
+- **기기 내 라이브러리 풀기 (Astraea 및 UM:PD Global)**:
+  - 내장 [Senbei](https://github.com/Tenshou170/Senbei) 엔진으로 보호된 `libil2cpp.so`와 `libnative.so`를 게임의 arm64 스플릿에서 직접 복원합니다. PC 도구도, 파일 재업로드도 필요 없습니다(arm64 기기 전용).
+  - 마찬가지로 UM:PD Global의 암호화된 `libil2cpp.so`와 난독화된 `global-metadata.dat`도 분할 APK 또는 XAPK에서 복원합니다.
 - **되돌릴 수 없는 패치 경고**: Astraea 모드는 패치된 PC:RD를 순정 상태로 되돌릴 수 없음을 명시합니다. 순정으로 플레이하려면 Play 스토어에서 다시 설치해야 합니다.
 
 ---
@@ -55,10 +57,16 @@
 
 | 모드 | 게임 | 런타임 | 상태 |
 | :--- | :--- | :--- | :--- |
-| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | 전체 패치 흐름 |
+| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | 전체 패치 흐름(설치된 앱 및 파일; Global은 분할 APK 세트 패치) |
 | **Astraea** | PC:RD (JP) | DaringTact | 분할 APK 패치, 라이브러리 풀기, 설치 또는 내보내기 |
 
-Astraea는 설치된 앱이 아니라 게임의 분할 APK를 패치합니다. base 스플릿에는 깨끗한 Application 클래스와 CrackProof 셸을 우회하는 매니페스트 리다이렉트를 적용하고, arm64 config 스플릿에는 `lib__*__.so` 스텁을 제거한 뒤 `libil2cpp.so`, `libnative.so`, `libdaringtact.so`를 기록합니다. 결과는 다시 서명되며 Shizuku, 시스템 패키지 설치 프로그램, 또는 분할 APK/XAPK 내보내기로 설치할 수 있습니다.
+> [!NOTE]
+> **Astraea 패치 아키텍처**  
+> Astraea는 설치된 앱이 아니라 게임의 분할 APK를 패치합니다. base 스플릿에는 깨끗한 Application 클래스와 네이티브 셸 래퍼를 우회하는 매니페스트 리다이렉트를 적용하고, arm64 config 스플릿에는 `lib__*__.so` 스텁을 제거한 뒤 `libil2cpp.so`, `libnative.so`, `libdaringtact.so`를 기록합니다. 결과는 다시 서명되며 Shizuku, 시스템 패키지 설치 프로그램, 또는 분할 APK/XAPK 내보내기로 설치할 수 있습니다.
+
+> [!NOTE]
+> **UM:PD Global (EN) 패치 아키텍처**  
+> Global은 Astraea와 유사한 구조입니다. 네이티브 패커가 `Application`을 소유하고 `libil2cpp.so`를 암호화하므로, 패치는 깨끗한 Application 클래스, Senbei로 복원된 `libil2cpp.so`, 복원된 `global-metadata.dat`를 사용하여 분할 APK를 재구성합니다. 패칭 스튜디오는 게임의 분할 APK에서 두 복원 파일을 직접 추출하며, 사용자의 키로 재서명되므로 스토어 복사본을 먼저 제거해야 합니다. 복원된 파일은 추출된 게임 버전에 종속되므로, 게임 업데이트 시 스튜디오에서 경고를 표시합니다.
 
 앱에서도 알리지만, 패치된 빌드는 사용자의 키로 서명되므로 스토어 버전을 업데이트할 수 없고(먼저 게임을 삭제해야 합니다), 순정 상태로 되돌리는 복원 기능도 없습니다. 패치가 제거하는 셸은 되돌릴 수 없으며, 유일한 방법은 Play 스토어에서 다시 설치하는 것입니다.
 
@@ -113,4 +121,4 @@ cd HachiDroid
 
 ### Senbei 브리지
 
-선택적인 기기 내 복원은 CrackProof 언패커 [Senbei](https://github.com/Tenshou170/Senbei)(**AGPL-3.0-only**)를 링크합니다. 따라서 `libsenbei_jni.so`를 포함하는 빌드는 위의 GPL-3.0에 더해 AGPL-3.0 의무를 집니다. [NOTICE](../NOTICE)를 참고하세요. Rust 툴체인이 없으면 브리지는 포함되지 않습니다.
+선택적인 기기 내 복원은 정적 복원 엔진 [Senbei](https://github.com/Tenshou170/Senbei)(**AGPL-3.0-only**)를 링크합니다. 따라서 `libsenbei_jni.so`를 포함하는 빌드는 위의 GPL-3.0에 더해 AGPL-3.0 의무를 집니다. [NOTICE](../NOTICE)를 참고하세요. Rust 툴체인이 없으면 브리지는 포함되지 않습니다.

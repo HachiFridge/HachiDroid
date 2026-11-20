@@ -16,7 +16,7 @@
   - Платформа SDK: `platforms;android-37` (Android 17)
   - Инструменты сборки: `build-tools;37.0.0`
   - Платформенные утилиты: `platform-tools`
-- **Android NDK** *(необязательно — только для восстановления на устройстве в Astraea)*: r29 или новее (проверено на r30). Для выравнивания страниц по 16 KB нужен как минимум r27.
+- **Android NDK** *(необязательно — только для восстановления на устройстве в Astraea и UM:PD Global)*: r29 или новее (проверено на r30). Для выравнивания страниц по 16 KB нужен как минимум r27.
 - **Инструменты Rust** *(необязательно — та же функция)*: стабильный Rust 1.85+ с целью `aarch64-linux-android` (`rustup target add aarch64-linux-android`).
 - **Git**: Для управления версиями.
 
@@ -75,7 +75,7 @@ export SIGNING_KEY_PASSWORD="your_key_password"
 
 ### Нативный мост (необязательно)
 
-Восстановление библиотек на устройстве в Astraea находится в `app/src/main/rust/senbei-jni`; задача Gradle `buildSenbeiJni` собирает его через Cargo в `lib/arm64-v8a/libsenbei_jni.so`.
+Восстановление библиотек на устройстве для Astraea и UM:PD Global находится в `app/src/main/rust/senbei-jni`; задача Gradle `buildSenbeiJni` собирает его через Cargo в `lib/arm64-v8a/libsenbei_jni.so`.
 
 ```bash
 rustup target add aarch64-linux-android

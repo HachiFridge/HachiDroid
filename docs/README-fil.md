@@ -26,7 +26,7 @@ Ang HachiDroid ay isang open-source na Android application na nag-i-inject at na
   - Japan (JP)
   - Traditional Chinese (TW / HK)
   - Korean (KR)
-  - Global (EN)
+  - Global (EN) — naka-pack, kaya unang ibinabalik ng patch ang `libil2cpp.so` at `global-metadata.dat` mula sa split ng laro
 - **Iba\'t Ibang Patch Target**:
   - **Naka-install na Laro**: Direktang tukuyin at i-patch ang client na nasa device na.
   - **Mga APK File**: Pumili at mag-patch ng standalone APK, split APK bundle, o XAPK file.
@@ -44,7 +44,9 @@ Ang HachiDroid ay isang open-source na Android application na nag-i-inject at na
 - **Makabagong Storage at DocumentsProvider**: Opsyonal na DocumentsProvider export na nagbibigay-daan sa mga file manager na ma-access ang `/data/data` (kailangan sa Android 16 QPR2+ at Android 17+).
 - **Paglipat mula sa UmaPatcher-Edge**: Isang-pindot na awtomatikong paglipat ng mga signing keystore, plugin, at setting mula sa lumang UmaPatcher-Edge.
 - **Mga game mode**: Tracen (UM:PD · Hachimi) at Astraea (PC:RD JP · DaringTact) na may sariling palette at dashboard.
-- **On-device na pag-unpack ng library (Astraea)**: binubuksan ng built-in na [Senbei](https://github.com/Tenshou170/Senbei) engine ang `libil2cpp.so` at `libnative.so` na protektado ng CrackProof mula mismo sa arm64 split ng laro — walang kailangang PC tool at walang muling pag-upload ng file ng iba. Para sa arm64 device lamang.
+- **On-device na pag-unpack ng library (Astraea at UM:PD Global)**:
+  - Binubuksan ng built-in na [Senbei](https://github.com/Tenshou170/Senbei) engine ang protektadong `libil2cpp.so` at `libnative.so` mula mismo sa arm64 split ng laro — walang kailangang PC tool at walang muling pag-upload ng file ng iba (para sa arm64 device lamang).
+  - Ibinabalik din nito ang naka-encrypt na `libil2cpp.so` at obfuscated na `global-metadata.dat` ng UM:PD Global mula sa split APK o XAPK.
 - **Babala sa one-way na patch**: sinasabi ng Astraea mode na hindi maibabalik sa orihinal ang naka-patch na PC:RD; para makapaglaro nang walang mod, kailangang i-install muli mula sa Play Store.
 
 ---
@@ -55,10 +57,16 @@ Pinipili sa dropdown ng hero card ang game family, at dumadaan ang pinili sa buo
 
 | Mode | Laro | Runtime | Kalagayan |
 | :--- | :--- | :--- | :--- |
-| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | Kumpletong patch flow |
+| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | Kumpletong patch flow (naka-install na app at mga file; pini-patch ng Global ang split set) |
 | **Astraea** | PC:RD (JP) | DaringTact | Split patching, pag-unpack ng library, install o export |
 
-Pinapa-patch ng Astraea ang split set ng laro, hindi ang naka-install na app: ang base split ay binibigyan ng malinis na Application class at manifest redirect na lumalampas sa CrackProof shell, at ang arm64 config split ay tinatanggalan ng `lib__*__.so` stubs at nilalagyan ng `libil2cpp.so`, `libnative.so` at `libdaringtact.so`. Nire-re-sign ang resulta at maaaring i-install sa Shizuku, sa system package installer, o i-export bilang split APKs / XAPK.
+> [!NOTE]
+> **Arkitektura ng Pag-patch ng Astraea**  
+> Pinapa-patch ng Astraea ang split set ng laro, hindi ang naka-install na app: ang base split ay binibigyan ng malinis na Application class at manifest redirect na lumalampas sa native shell wrapper, at ang arm64 config split ay tinatanggalan ng `lib__*__.so` stubs at nilalagyan ng `libil2cpp.so`, `libnative.so` at `libdaringtact.so`. Nire-re-sign ang resulta at maaaring i-install sa Shizuku, sa system package installer, o i-export bilang split APKs / XAPK.
+
+> [!NOTE]
+> **Arkitektura ng Pag-patch ng UM:PD Global (EN)**  
+> Katulad ng Astraea ang pagkakagawa sa Global: hawak ng native packer ang `Application` at naka-encrypt ang `libil2cpp.so`. Dahil dito, muling binubuo ng patch ang mga split gamit ang malinis na Application class, ang `libil2cpp.so` na ibinalik ng Senbei, at ang na-deobfuscate na `global-metadata.dat`. Kinukuha ng studio ang dalawang naibalik na file mula sa mga split ng laro, nire-re-sign gamit ang sarili mong key, at kailangang i-uninstall muna ang kopya mula sa store. Ang mga naibalik na file ay nakatali sa bersyon ng laro kung saan kinuha ang mga ito, kaya magbababala ang studio kapag luma na ang mga ito.
 
 Dalawang epekto ang sinasabi rin sa app: naka-sign ang naka-patch na build gamit ang sarili mong key kaya hindi nito maa-update ang kopya mula sa store (i-uninstall muna ang laro), at walang pag-restore sa orihinal — hindi na maibabalik ang shell na tinatanggal ng patch, at ang tanging paraan pabalik ay mag-install muli mula sa Play Store.
 
@@ -113,4 +121,4 @@ Ang proyektong ito ay lisensyado sa ilalim ng GNU General Public License v3.0 (G
 
 ### Senbei bridge
 
-Ginagamit ng opsyonal na on-device unpack ang [Senbei](https://github.com/Tenshou170/Senbei), isang CrackProof unpacker na lisensyado sa ilalim ng **AGPL-3.0-only**. Kaya ang mga build na may `libsenbei_jni.so` ay may AGPL-3.0 na obligasyon bukod sa GPL-3.0 sa itaas; tingnan ang [NOTICE](../NOTICE). Kung walang Rust toolchain, hindi kasama ang bridge.
+Ginagamit ng opsyonal na on-device unpack ang [Senbei](https://github.com/Tenshou170/Senbei), isang static restoration engine na lisensyado sa ilalim ng **AGPL-3.0-only**. Kaya ang mga build na may `libsenbei_jni.so` ay may AGPL-3.0 na obligasyon bukod sa GPL-3.0 sa itaas; tingnan ang [NOTICE](../NOTICE). Kung walang Rust toolchain, hindi kasama ang bridge.

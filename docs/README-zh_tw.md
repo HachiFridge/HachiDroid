@@ -26,7 +26,7 @@ HachiDroid 是一款開源 Android 應用程式，用於向行動遊戲客戶端
   - 日服 (JP)
   - 繁中服 (TW / HK)
   - 韓服 (KR)
-  - 國際服 (EN)
+  - 國際服 (EN) — 受外殼加固，修補時會先從遊戲的分割檔中還原 `libil2cpp.so` 與 `global-metadata.dat`
 - **靈活的補丁目標**：
   - **已安裝的遊戲**：直接偵測並修補裝置上現有的遊戲客戶端。
   - **APK 檔案**：支援單一 APK、分割 APK 安裝包或 XAPK 檔案。
@@ -44,7 +44,9 @@ HachiDroid 是一款開源 Android 應用程式，用於向行動遊戲客戶端
 - **現代儲存與 DocumentsProvider**：可選擇性匯出 DocumentsProvider，開放檔案管理工具存取 `/data/data`（Android 16 QPR2+ 與 Android 17+ 必備）。
 - **UmaPatcher-Edge 移轉**：一鍵自動從舊版 UmaPatcher-Edge 匯入簽章金鑰庫、外掛程式與偏好設定。
 - **遊戲模式**：Tracen（UM:PD · Hachimi）與 Astraea（PC:RD 日服 · DaringTact），各自擁有獨立配色與儀表板。
-- **裝置內程式庫解開（Astraea）**：透過內建的 [Senbei](https://github.com/Tenshou170/Senbei) 引擎，直接從遊戲的 arm64 分割檔解開受 CrackProof 保護的 `libil2cpp.so` 與 `libnative.so`，無需電腦工具，也無需重新上傳任何檔案。僅支援 arm64 裝置。
+- **裝置內程式庫解開（Astraea 與 UM:PD 國際服）**：
+  - 透過內建的 [Senbei](https://github.com/Tenshou170/Senbei) 引擎，直接從遊戲的 arm64 分割檔解開受保護的 `libil2cpp.so` 與 `libnative.so`，無需電腦工具，也無需重新上傳任何檔案（僅支援 arm64 裝置）。
+  - 同樣支援從分割檔或 XAPK 中還原 UM:PD 國際服加密的 `libil2cpp.so` 與被混淆的 `global-metadata.dat`。
 - **單向修補警告**：Astraea 模式會明確說明，已修補的 PC:RD 無法還原為原版；若要遊玩原版，需從 Play 商店重新安裝。
 
 ---
@@ -55,10 +57,16 @@ HachiDroid 是一款開源 Android 應用程式，用於向行動遊戲客戶端
 
 | 模式 | 遊戲 | 執行階段 | 狀態 |
 | :--- | :--- | :--- | :--- |
-| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | 完整修補流程 |
+| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | 完整修補流程（已安裝應用程式與檔案；國際服修補分割檔） |
 | **Astraea** | PC:RD（日服） | DaringTact | 分割檔修補、程式庫解開、安裝或匯出 |
 
-Astraea 修補的是遊戲的分割檔，而非已安裝的應用程式：base 分割檔會換上乾淨的 Application 類別，並改寫資訊清單以繞過 CrackProof 外殼；arm64 config 分割檔則會刪除 `lib__*__.so` 樁程式庫，並寫入 `libil2cpp.so`、`libnative.so` 與 `libdaringtact.so`。結果會重新簽署，可透過 Shizuku、系統安裝程式安裝，或匯出為分割 APK / XAPK。
+> [!NOTE]
+> **Astraea 修補架構**  
+> Astraea 修補的是遊戲的分割檔，而非已安裝的應用程式：base 分割檔會換上乾淨的 Application 類別，並改寫資訊清單以繞過原生加固外殼；arm64 config 分割檔則會刪除 `lib__*__.so` 樁程式庫，並寫入 `libil2cpp.so`、`libnative.so` 與 `libdaringtact.so`。結果會重新簽署，可透過 Shizuku、系統安裝程式安裝，或匯出為分割 APK / XAPK。
+
+> [!NOTE]
+> **UM:PD 國際服 (EN) 修補架構**  
+> 國際服的建置方式與 Astraea 類似：原生加固層接管了 `Application` 並加密了 `libil2cpp.so`。因此修補會使用乾淨的 Application 類別、Senbei 還原的 `libil2cpp.so` 以及還原後的 `global-metadata.dat` 重新打包分割檔。修補工作室會直接從遊戲分割檔中擷取這兩個還原檔案，產生的檔案會由您自己的金鑰簽署，因此必須先解除安裝商店版遊戲。還原檔案僅對應擷取它的遊戲版本，若遊戲更新，工作室會提示檔案過期。
 
 應用程式內也會明確說明兩點：修補版以你的金鑰簽署，無法更新商店版本（請先解除安裝遊戲）；也沒有原版還原——修補移除的外殼無法復原，唯一的方法是從 Play 商店重新安裝。
 
@@ -113,4 +121,4 @@ cd HachiDroid
 
 ### Senbei 橋接
 
-選用的裝置內還原會連結 CrackProof 解包工具 [Senbei](https://github.com/Tenshou170/Senbei)（**AGPL-3.0-only**）。因此包含 `libsenbei_jni.so` 的建置除了上述 GPL-3.0 外，還需遵守 AGPL-3.0；詳見 [NOTICE](../NOTICE)。沒有 Rust 工具鏈時，此橋接不會被包含。
+選用的裝置內還原會連結靜態還原引擎 [Senbei](https://github.com/Tenshou170/Senbei)（**AGPL-3.0-only**）。因此包含 `libsenbei_jni.so` 的建置除了上述 GPL-3.0 外，還需遵守 AGPL-3.0；詳見 [NOTICE](../NOTICE)。沒有 Rust 工具鏈時，此橋接不會被包含。

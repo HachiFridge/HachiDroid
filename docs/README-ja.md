@@ -1,7 +1,7 @@
 <div align="center">
   <img src="../images/AppIcon.png" width="128" height="128" alt="HachiDroid icon">
   <h1>HachiDroid</h1>
-  <p><b>UM:PD と PC:RD 向け 次世代Android MODパッチャー＆マネージャー</b></p>
+  <p><b>Tracen と Astraea 向け 次世代Android MODパッチャー＆マネージャー</b></p>
 
   <p><a href="../README.md">English</a> | <a href="README-fil.md">Filipino</a> | 日本語 | <a href="README-ko.md">한국어</a> | <a href="README-ru.md">Русский</a> | <a href="README-vi.md">Tiếng Việt</a> | <a href="README-zh_cn.md">简体中文</a> | <a href="README-zh_tw.md">繁體中文</a></p>
 
@@ -16,7 +16,7 @@
   </p>
 </div>
 
-HachiDroid は、モバイルゲームのクライアントに MOD ランタイムを注入・パッチ適用するためのオープンソース Android アプリケーションです。**UM:PD** 向けの **Hachimi** を扱う **Tracen** と、**PC:RD (JP)** 向けの **DaringTact** を扱う **Astraea** の 2 つのゲームファミリーを搭載し、ホーム画面の 1 つの操作で切り替えられます。Jetpack Compose と Material 3 Expressive デザインでゼロから構築された、[UmaPatcher-Edge](https://github.com/Tenshou170/UmaPatcher-Edge) の現代的な後継ツールです。
+HachiDroid は、モバイルゲームのクライアントに MOD ランタイムを注入・パッチ適用するためのオープンソース Android アプリケーションです。**Hachimi** を扱う **Tracen** と、**DaringTact** を扱う **Astraea** の 2 つのゲームファミリーを搭載し、ホーム画面の 1 つの操作で切り替えられます。Jetpack Compose と Material 3 Expressive デザインでゼロから構築された、[UmaPatcher-Edge](https://github.com/Tenshou170/UmaPatcher-Edge) の現代的な後継ツールです。
 
 ---
 
@@ -26,7 +26,7 @@ HachiDroid は、モバイルゲームのクライアントに MOD ランタイ�
   - 日本版 (JP)
   - 繁体字中国語版 (TW / HK)
   - 韓国版 (KR)
-  - グローバル版 (EN)
+  - グローバル版 (EN) — パックされているため、パッチ適用時にまずゲームの分割APKから `libil2cpp.so` と `global-metadata.dat` を復元します
 - **柔軟なパッチ対象**:
   - **インストール済みゲーム**: デバイスに既にインストールされているクライアントを直接検出してパッチ。
   - **APKファイル**: 単一APK、分割APK、XAPKファイルを選択してパッチ。
@@ -44,7 +44,9 @@ HachiDroid は、モバイルゲームのクライアントに MOD ランタイ�
 - **最新ストレージ・DocumentsProvider**: ファイルマネージャーから `/data/data` へのアクセスを可能にする DocumentsProvider エクスポート（Android 16 QPR2+ および Android 17+ で必要）。
 - **UmaPatcher-Edge からの移行**: 従来の UmaPatcher-Edge から署名キーストア、プラグイン、設定をワンクリックで自動移行。
 - **ゲームモード**: モードごとの配色とダッシュボードを備えた Tracen（UM:PD・Hachimi）と Astraea（PC:RD JP・DaringTact）。
-- **端末上でのライブラリ展開 (Astraea)**: 内蔵の [Senbei](https://github.com/Tenshou170/Senbei) エンジンで、CrackProof で保護された `libil2cpp.so` と `libnative.so` をゲームの arm64 スプリットから直接展開します。PC 用ツールも再アップロードも不要です。arm64 端末のみ対応。
+- **端末上でのライブラリ展開 (Astraea & UM:PD Global)**:
+  - 内蔵の [Senbei](https://github.com/Tenshou170/Senbei) エンジンで、保護された `libil2cpp.so` と `libnative.so` をゲームの arm64 スプリットから直接展開・復元します。PC 用ツールも再アップロードも不要です（arm64 端末のみ対応）。
+  - 同様に UM:PD Global の暗号化された `libil2cpp.so` と難読化された `global-metadata.dat` を分割APKまたはXAPKから復元します。
 - **一方通行のパッチ警告**: Astraea モードは、パッチ適用済みの PC:RD を純正状態に戻せないことを明示します。未改造で遊ぶには Play ストアから再インストールが必要です。
 
 ---
@@ -55,10 +57,16 @@ HachiDroid は、モバイルゲームのクライアントに MOD ランタイ�
 
 | モード | ゲーム | ランタイム | 状態 |
 | :--- | :--- | :--- | :--- |
-| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | パッチフロー全体 |
+| **Tracen** | UM:PD (JP / TW-HK / KR / EN) | Hachimi-Edge | パッチフロー全体（インストール済みアプリ & ファイル。Global は分割APKセットをパッチ） |
 | **Astraea** | PC:RD (JP) | DaringTact | 分割APKのパッチ、ライブラリ展開、インストール／書き出し |
 
-Astraea はインストール済みアプリではなくゲームの分割APKをパッチします。base スプリットにはクリーンな Application クラスと、CrackProof シェルを迂回するマニフェストの書き換えを適用し、arm64 の config スプリットには `lib__*__.so` のスタブを削除したうえで `libil2cpp.so`、`libnative.so`、`libdaringtact.so` を書き込みます。結果は再署名され、Shizuku、システムのパッケージインストーラー、または分割APK／XAPK としての書き出しでインストールできます。
+> [!NOTE]
+> **Astraea パッチ構造**  
+> Astraea はインストール済みアプリではなくゲームの分割APKをパッチします。base スプリットにはクリーンな Application クラスと、ネイティブシェルラッパーを迂回するマニフェストの書き換えを適用し、arm64 の config スプリットには `lib__*__.so` のスタブを削除したうえで `libil2cpp.so`、`libnative.so`、`libdaringtact.so` を書き込みます。結果は再署名され、Shizuku、システムのパッケージインストーラー、または分割APK／XAPK としての書き出しでインストールできます。
+
+> [!NOTE]
+> **UM:PD Global (EN) のパッチ構造**  
+> Global は Astraea と同様の構造を持ちます。ネイティブラッパーが `Application` を所有し `libil2cpp.so` を暗号化しているため、パッチはクリーンな Application クラス、Senbei で復元した `libil2cpp.so`、および復元された `global-metadata.dat` を使って分割APKを再構築します。スタジオは両方の復元ファイルをゲームの分割APKから抽出し、自身の鍵で再署名します。署名が異なるため、ストア版のアンインストールが事前に必要です。復元されたファイルは抽出元のゲームバージョンに固有であるため、ゲーム更新時にはスタジオが警告を表示します。
 
 アプリ内でも明示していますが、パッチ済みビルドは独自の鍵で署名されるためストア版を更新できません（先にゲームをアンインストールしてください）。また純正状態への復元はありません。パッチが取り除くシェルは元に戻せず、戻る手段は Play ストアからの再インストールだけです。
 
@@ -113,4 +121,4 @@ cd HachiDroid
 
 ### Senbei ブリッジ
 
-任意の端末上復元は、CrackProof アンパッカー [Senbei](https://github.com/Tenshou170/Senbei)（**AGPL-3.0-only**）をリンクします。`libsenbei_jni.so` を同梱するビルドは、上記の GPL-3.0 に加えて AGPL-3.0 の義務を負います。[NOTICE](../NOTICE) を参照してください。Rust ツールチェーンのない環境ではブリッジは単に含まれません。
+任意の端末上復元は、静的復元エンジン [Senbei](https://github.com/Tenshou170/Senbei)（**AGPL-3.0-only**）をリンクします。`libsenbei_jni.so` を同梱するビルドは、上記の GPL-3.0 に加えて AGPL-3.0 の義務を負います。[NOTICE](../NOTICE) を参照してください。Rust ツールチェーンのない環境ではブリッジは単に含まれません。
