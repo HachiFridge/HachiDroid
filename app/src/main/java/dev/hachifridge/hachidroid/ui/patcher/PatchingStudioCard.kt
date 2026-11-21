@@ -51,6 +51,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -762,7 +763,12 @@ fun PatchingStudioCard(
                     homeViewModel.unpackLibrariesFromSplits(context, homeViewModel.patchSplits)
                 },
                 onImport = { libraryImportLauncher.launch(arrayOf("*/*")) },
-                onRemove = { name -> homeViewModel.removeLibrary(context, name) }
+                onRemove = { name -> homeViewModel.removeLibrary(context, name) },
+                modLibraryName = profile.libraries.modLibrary,
+                modSourceKind = homeViewModel.modSourceKind,
+                modVersion = homeViewModel.modVersion,
+                fetchingMod = homeViewModel.fetchingMod,
+                onFetchMod = { homeViewModel.fetchMod(context) }
             )
 
             // Primary Action Button
@@ -875,7 +881,12 @@ private fun LibraryGateSection(
     unpackError: String?,
     onUnpack: () -> Unit,
     onImport: () -> Unit,
-    onRemove: (String) -> Unit
+    onRemove: (String) -> Unit,
+    modLibraryName: String,
+    modSourceKind: String,
+    modVersion: String,
+    fetchingMod: Boolean,
+    onFetchMod: () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(!libraries.isReady) }
     val ready = libraries.isReady
@@ -962,7 +973,13 @@ private fun LibraryGateSection(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     libraries.libs.forEach { lib ->
-                        StudioLibraryRow(lib, onRemove = { onRemove(lib.name) })
+                        StudioLibraryRow(
+                            lib = lib,
+                            isModLibrary = lib.name == modLibraryName,
+                            modSourceKind = modSourceKind,
+                            modVersion = modVersion,
+                            onRemove = { onRemove(lib.name) }
+                        )
                     }
 
                     if (libraries.artifactsStale) {
@@ -1042,18 +1059,56 @@ private fun LibraryGateSection(
                         }
                     }
 
-                    FilledTonalButton(
-                        onClick = onImport,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.libraries_import_action))
+                    val modMissing = !libraries.isPresent(modLibraryName)
+                    if (modMissing && modSourceKind == "github") {
+                        FilledTonalButton(
+                            onClick = onFetchMod,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = !fetchingMod
+                        ) {
+                            if (fetchingMod) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.syncing_app_libs))
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.FileDownload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.mod_library_download))
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = onImport,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.libraries_import_action))
+                        }
+                    } else {
+                        FilledTonalButton(
+                            onClick = onImport,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.libraries_import_action))
+                        }
                     }
 
                     if (shellProtected) {
@@ -1080,7 +1135,13 @@ private fun LibraryGateSection(
 
 /** One library in the checklist, with its size and a way to drop a stale copy. */
 @Composable
-private fun StudioLibraryRow(lib: LibrarySet.LibStatus, onRemove: () -> Unit) {
+private fun StudioLibraryRow(
+    lib: LibrarySet.LibStatus,
+    isModLibrary: Boolean = false,
+    modSourceKind: String = "github",
+    modVersion: String = "",
+    onRemove: () -> Unit
+) {
     val context = LocalContext.current
     val okColor = MaterialTheme.colorScheme.primary
     val badColor = MaterialTheme.colorScheme.error
@@ -1111,10 +1172,15 @@ private fun StudioLibraryRow(lib: LibrarySet.LibStatus, onRemove: () -> Unit) {
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = if (lib.present) {
-                        Formatter.formatShortFileSize(context, lib.sizeBytes)
-                    } else {
-                        stringResource(R.string.libraries_missing_lib)
+                    text = when {
+                        lib.present && isModLibrary && modVersion.isNotEmpty() ->
+                            "$modVersion · ${Formatter.formatShortFileSize(context, lib.sizeBytes)}"
+                        lib.present ->
+                            Formatter.formatShortFileSize(context, lib.sizeBytes)
+                        isModLibrary && modSourceKind == "github" ->
+                            stringResource(R.string.mod_library_missing)
+                        else ->
+                            stringResource(R.string.libraries_missing_lib)
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

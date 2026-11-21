@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageInfo
 import android.net.Uri
 import android.os.Build
@@ -26,6 +27,7 @@ import dev.hachifridge.hachidroid.client.ClientProfile
 import dev.hachifridge.hachidroid.core.PrefKey
 import dev.hachifridge.hachidroid.client.PluginEntry
 import dev.hachifridge.hachidroid.client.LibrarySet
+import dev.hachifridge.hachidroid.client.displayNameOf
 import dev.hachifridge.hachidroid.core.dataStore
 import dev.hachifridge.hachidroid.client.ShellLibraryUnpacker
 import dev.hachifridge.hachidroid.core.senbei.SenbeiNative
@@ -296,8 +298,17 @@ class HomeViewModel : ViewModel() {
      */
     fun importLibraries(context: Context, uris: List<Uri>) {
         if (uris.isEmpty()) return
-        val picks = patchSplits
         val store = profile.libraries
+
+        // When a single mod runtime binary is selected, streamline through mod import so validation
+        // and mod source preferences are seamlessly synced.
+        val singleUri = uris.singleOrNull()
+        if (singleUri != null && store.isModLibraryName(displayNameOf(context, singleUri))) {
+            importMod(context, singleUri)
+            return
+        }
+
+        val picks = patchSplits
         viewModelScope.launch {
             // Resolved from the picks themselves: the asynchronous probe may not have landed yet.
             val shape = shapeOfPicks(context, picks)
@@ -316,6 +327,24 @@ class HomeViewModel : ViewModel() {
                 // Imported restored files belong to this build; record which one.
                 if (result.imported.isNotEmpty() && stamp != null) store.writeStamp(context, stamp)
                 result
+            }
+            if (store.modLibrary in report.imported) {
+                val modUri = uris.firstOrNull { uri ->
+                    store.isModLibraryName(displayNameOf(context, uri))
+                }
+                val modName = modUri?.let { displayNameOf(context, it) } ?: store.modLibrary
+                val targetFile = store.modDirectory(context).resolve(store.modLibrary)
+                val version = (profile.modSource.validate(context, targetFile) as? ModSource.Validation.Ok)?.detail
+                val vKey = profile.modSource.versionKey
+                context.dataStore.edit {
+                    it[profile.modSource.sourceKey] = "local"
+                    it[profile.modSource.nameKey] = modName
+                    if (modUri != null) it[profile.modSource.uriKey] = modUri.toString()
+                    if (version != null && vKey != null) {
+                        it[vKey] = version
+                    }
+                }
+                readModState(context)
             }
             refreshLibraries(context)
             val message = when {
@@ -339,7 +368,14 @@ class HomeViewModel : ViewModel() {
     fun removeLibrary(context: Context, name: String) {
         viewModelScope.launch {
             val store = profile.libraries
+            val isMod = store.isModLibraryName(name)
             val removed = withContext(Dispatchers.IO) { store.remove(context, name) }
+            if (isMod && removed) {
+                profile.modSource.versionKey?.let { key ->
+                    context.dataStore.edit { it[key] = "" }
+                }
+                readModState(context)
+            }
             refreshLibraries(context)
             if (removed) unpackError = null
             context.showToast(
@@ -467,11 +503,16 @@ class HomeViewModel : ViewModel() {
      */
     fun importMod(context: Context, uri: Uri) {
         val source = client.modSource
-        val name = DocumentFile.fromSingleUri(context, uri)?.name
-            ?: uri.lastPathSegment
-            ?: source.libraryName
+        val name = displayNameOf(context, uri).ifEmpty { source.libraryName }
         viewModelScope.launch {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: Exception) {}
             context.dataStore.edit {
+                it[source.sourceKey] = "local"
                 it[source.uriKey] = uri.toString()
                 it[source.nameKey] = name
             }

@@ -85,14 +85,27 @@ class ModSource(
 
     private val tag = "ModSource($id)"
 
-    /** Where the patcher reads the library from. */
-    fun target(context: Context): File =
-        libraries.directory(context).resolve(libraryName)
+    /** Where the patcher reads the library from. Shared across profiles when [LibrarySet.modDirectoryName] is configured. */
+    fun target(context: Context): File {
+        val modDir = libraries.modDirectory(context)
+        val file = modDir.resolve(libraryName)
+        // Migration: If the mod library exists in the profile directory (e.g. legacy libs_glb) but not in shared modDirectory, copy it over
+        if (!file.isFile) {
+            val legacy = libraries.directory(context).resolve(libraryName)
+            if (legacy.isFile && legacy.length() > 0L) {
+                modDir.mkdirs()
+                runCatching { legacy.copyTo(file, overwrite = true) }
+            }
+        }
+        return file
+    }
 
     fun isCached(context: Context): Boolean = target(context).isFile
 
     suspend fun cachedVersion(context: Context): String =
         versionKey?.let { context.getPrefValue(it) as String? }.orEmpty()
+
+    fun validate(context: Context, file: File): Validation? = validator?.invoke(context, file)
 
     /**
      * Fetches the newest release asset. Network-bound, and [withContext] keeps that off the main
@@ -287,7 +300,7 @@ class ModSource(
 
     /** The library folder only exists once something has been written to it. */
     private fun prepare(context: Context): File {
-        libraries.directory(context).mkdirs()
+        libraries.modDirectory(context).mkdirs()
         return target(context)
     }
 

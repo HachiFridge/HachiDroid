@@ -44,12 +44,22 @@ class LibrarySet(
      */
     val protectedGameAssets: List<String> = emptyList(),
     /** Directory where the shared mod runtime binary is kept. Defaults to [directoryName]. */
-    val modDirectoryName: String = directoryName
+    val modDirectoryName: String = directoryName,
+    /** Alternative filenames that should be recognized and imported as [modLibrary]. */
+    val modLibraryAliases: List<String> = emptyList()
 ) {
+
+    /** Whether [name] refers to the mod runtime binary or one of its known aliases. */
+    fun isModLibraryName(name: String): Boolean =
+        name == modLibrary || modLibraryAliases.any { it.equals(name, ignoreCase = true) }
+
+    /** Resolves aliases of [modLibrary] to its canonical storage name. */
+    fun canonicalName(name: String): String =
+        if (isModLibraryName(name)) modLibrary else name
 
     /** Every name the folder may hold; used for import matching, not for readiness. */
     val knownLibraries: List<String>
-        get() = (gameLibraries + protectedGameLibraries + protectedGameAssets + modLibrary).distinct()
+        get() = (gameLibraries + protectedGameLibraries + protectedGameAssets + modLibrary + modLibraryAliases).distinct()
 
     /** Names that exist only in a packer-protected build; nothing else ever provides them. */
     val protectedNames: List<String>
@@ -63,8 +73,11 @@ class LibrarySet(
      * target would later be handed to the other release's patch. Those names are therefore only
      * accepted for a protected build; the mod runtime and a plain build's own libraries are not.
      */
-    fun accepts(name: String, shellProtected: Boolean): Boolean =
-        name in knownLibraries && (shellProtected || name !in protectedNames)
+    fun accepts(name: String, shellProtected: Boolean): Boolean {
+        val canonical = canonicalName(name)
+        val valid = canonical in (gameLibraries + protectedGameLibraries + protectedGameAssets + modLibrary)
+        return valid && (shellProtected || canonical !in protectedNames)
+    }
 
     /** The game-side libraries a patch of this build restores. */
     fun gameLibrariesFor(shellProtected: Boolean): List<String> =
@@ -194,9 +207,16 @@ class LibrarySet(
      * game update replaces it. Touches the filesystem; call from a background dispatcher.
      */
     fun remove(context: Context, name: String): Boolean = runCatching {
-        val targetDir = if (name == modLibrary) modDirectory(context) else directory(context)
-        val file = targetDir.resolve(name)
-        !file.exists() || file.delete()
+        val canonical = canonicalName(name)
+        val isMod = isModLibraryName(name)
+        val targetDir = if (isMod) modDirectory(context) else directory(context)
+        val file = targetDir.resolve(canonical)
+        val deleted = file.delete()
+        if (isMod) {
+            // Also clean up any legacy copy in regional directory
+            directory(context).resolve(canonical).delete()
+        }
+        deleted || !file.exists()
     }.getOrDefault(false)
 
     /** Touches the filesystem; call from a background dispatcher. */
@@ -211,7 +231,15 @@ class LibrarySet(
             libs = requiredLibraries(shellProtected).map { name ->
                 val file = if (name == modLibrary) {
                     val primary = modDir.resolve(name)
-                    if (primary.isFile && primary.length() > 0L) primary else dir.resolve(name)
+                    if (primary.isFile && primary.length() > 0L) primary
+                    else {
+                        val secondary = dir.resolve(name)
+                        if (secondary.isFile && secondary.length() > 0L) {
+                            modDir.mkdirs()
+                            runCatching { secondary.copyTo(primary, overwrite = true) }
+                            primary
+                        } else secondary
+                    }
                 } else {
                     dir.resolve(name)
                 }
@@ -272,15 +300,23 @@ class LibrarySet(
         for (uri in uris) {
             val name = displayNameOf(context, uri)
             if (accepts(name, shellProtected)) {
-                val dest = if (name == modLibrary) modDirectory(context) else dir
+                val isMod = isModLibraryName(name)
+                val canonical = canonicalName(name)
+                val dest = if (isMod) modDirectory(context) else dir
                 dest.mkdirs()
+                val targetFile = dest.resolve(canonical)
                 val result = runCatching {
                     context.contentResolver.openInputStream(uri)
-                        ?.use { writeLibrary(dest.resolve(name), it, probePacked = isRestorable(name)) }
+                        ?.use { writeLibrary(targetFile, it, probePacked = isRestorable(canonical)) }
                 }.getOrNull() ?: WriteResult.FAILED
                 when (result) {
-                    WriteResult.WRITTEN -> imported += name
-                    WriteResult.STILL_PACKED -> stillPacked += name
+                    WriteResult.WRITTEN -> {
+                        imported += canonical
+                        if (isMod && dest != dir) {
+                            dir.resolve(canonical).delete()
+                        }
+                    }
+                    WriteResult.STILL_PACKED -> stillPacked += canonical
                     WriteResult.FAILED -> skipped += name
                 }
                 continue
@@ -294,8 +330,8 @@ class LibrarySet(
                     context = context,
                     uri = uri,
                     dir = dir,
-                    accept = { libName -> accepts(libName, shellProtected) && libName !in imported },
-                    onStillPacked = { libName -> if (libName !in packed) packed += libName }
+                    accept = { libName -> accepts(libName, shellProtected) && canonicalName(libName) !in imported },
+                    onStillPacked = { libName -> if (libName !in packed) packed += canonicalName(libName) }
                 )
             }.onSuccess { found += it }
             imported += found
@@ -323,16 +359,24 @@ class LibrarySet(
                 while (true) {
                     val entry = zip.nextEntry ?: break
                     val baseName = entry.name.substringAfterLast('/')
-                    if (!entry.isDirectory && accept(baseName) && baseName !in found) {
-                        val dest = if (baseName == modLibrary) modDirectory(context) else dir
+                    val isMod = isModLibraryName(baseName)
+                    val canonical = canonicalName(baseName)
+                    if (!entry.isDirectory && (accept(baseName) || accept(canonical)) && canonical !in found) {
+                        val dest = if (isMod) modDirectory(context) else dir
                         dest.mkdirs()
+                        val targetFile = dest.resolve(canonical)
                         when (writeLibrary(
-                            dest.resolve(baseName),
+                            targetFile,
                             zip,
-                            probePacked = isRestorable(baseName)
+                            probePacked = isRestorable(canonical)
                         )) {
-                            WriteResult.WRITTEN -> found += baseName
-                            WriteResult.STILL_PACKED -> onStillPacked(baseName)
+                            WriteResult.WRITTEN -> {
+                                found += canonical
+                                if (isMod && dest != dir) {
+                                    dir.resolve(canonical).delete()
+                                }
+                            }
+                            WriteResult.STILL_PACKED -> onStillPacked(canonical)
                             WriteResult.FAILED -> {}
                         }
                     }
@@ -352,7 +396,7 @@ class LibrarySet(
      * Only these are ever restored, so only these can arrive still carrying the packer's payload.
      */
     private fun isRestorable(name: String): Boolean =
-        name.endsWith(".so") && name in knownLibraries && name != modLibrary
+        name.endsWith(".so") && canonicalName(name) in knownLibraries && !isModLibraryName(name)
 
     /**
      * Streams [input] into [dest] through a temporary file, so an interrupted import never
@@ -408,23 +452,35 @@ class LibrarySet(
             magic[2] == 'L'.code.toByte() &&
             magic[3] == 'F'.code.toByte()
 
-    private fun displayNameOf(context: Context, uri: Uri): String {
-        if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
-            val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) return cursor.getString(0) ?: ""
-            }
-        }
-        return uri.lastPathSegment?.substringAfterLast('/').orEmpty()
-    }
-
-    private companion object {
+    internal companion object {
         const val COPY_BUFFER_BYTES = 512 * 1024
 
         /** Records which game version the restored files came from; see [readStamp]. */
         const val STAMP_FILE = "build.stamp"
     }
 }
+
+internal fun displayNameOf(context: Context, uri: Uri): String {
+    if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
+        val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
+        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) return cursor.getString(0) ?: ""
+        }
+    }
+    return uri.lastPathSegment?.substringAfterLast('/').orEmpty()
+}
+
+/** Known filenames for Hachimi mod runtime. */
+val TRACEN_MOD_ALIASES = listOf(
+    "libhachimi.so",
+    "libmain.so",
+    "libhachimi-arm64-v8a.so"
+)
+
+/** Known filenames for DaringTact mod runtime. */
+val ASTRAEA_MOD_ALIASES = listOf(
+    "libdaringtact-arm64-v8a.so"
+)
 
 /**
  * Tracen's native libraries: the Hachimi runtime, which is downloaded rather than unpacked, and a
@@ -445,7 +501,8 @@ val TracenGlbLibraries = LibrarySet(
     protectedGameLibraries = listOf("libil2cpp.so"),
     modLibrary = "libmain-arm64-v8a.so",
     protectedGameAssets = listOf("global-metadata.dat"),
-    modDirectoryName = "libs"
+    modDirectoryName = "libs",
+    modLibraryAliases = TRACEN_MOD_ALIASES
 )
 
 /**
@@ -456,7 +513,8 @@ val TracenJpLibraries = LibrarySet(
     gameLibraries = emptyList(),
     protectedGameLibraries = emptyList(),
     modLibrary = "libmain-arm64-v8a.so",
-    modDirectoryName = "libs"
+    modDirectoryName = "libs",
+    modLibraryAliases = TRACEN_MOD_ALIASES
 )
 
 /**
@@ -467,7 +525,8 @@ val TracenTwLibraries = LibrarySet(
     gameLibraries = emptyList(),
     protectedGameLibraries = emptyList(),
     modLibrary = "libmain-arm64-v8a.so",
-    modDirectoryName = "libs"
+    modDirectoryName = "libs",
+    modLibraryAliases = TRACEN_MOD_ALIASES
 )
 
 /**
@@ -478,7 +537,8 @@ val TracenKrLibraries = LibrarySet(
     gameLibraries = emptyList(),
     protectedGameLibraries = emptyList(),
     modLibrary = "libmain-arm64-v8a.so",
-    modDirectoryName = "libs"
+    modDirectoryName = "libs",
+    modLibraryAliases = TRACEN_MOD_ALIASES
 )
 
 /** Default / legacy Tracen native libraries set for backward compatibility. */
@@ -492,7 +552,8 @@ val AstraeaLibraries = LibrarySet(
     directoryName = "priconne_libs",
     gameLibraries = listOf("libil2cpp.so", "libnative.so"),
     protectedGameLibraries = emptyList(),
-    modLibrary = "libdaringtact.so"
+    modLibrary = "libdaringtact.so",
+    modLibraryAliases = ASTRAEA_MOD_ALIASES
 )
 
 /**
