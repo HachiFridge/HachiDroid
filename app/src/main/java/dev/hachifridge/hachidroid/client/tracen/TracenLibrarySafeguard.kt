@@ -114,17 +114,13 @@ object TracenLibrarySafeguard {
                     )
                 }
 
-                // 8. Check for HACHIMI_VERSION signature
+                // 8. Extract HACHIMI_VERSION signature if present; forks without it are still accepted
                 stream.reset()
-                val hachimiVersion = scanForHachimiMarker(stream)
-                if (hachimiVersion != null) {
-                    ValidationResult.Valid(
-                        version = hachimiVersion,
-                        is16KbCompatible = alignment?.is16KbCompatible
-                    )
-                } else {
-                    ValidationResult.Error(R.string.lib_guard_no_signature, isPluginOrOtherType = true)
-                }
+                val hachimiVersion = scanForHachimiMarker(stream).orEmpty()
+                ValidationResult.Valid(
+                    version = hachimiVersion,
+                    is16KbCompatible = alignment?.is16KbCompatible
+                )
             }
         } catch (e: Exception) {
             ValidationResult.Error(R.string.lib_guard_inspect_failed, listOf(reason(e)))
@@ -204,8 +200,11 @@ object TracenLibrarySafeguard {
     private fun reason(e: Exception): String = e.message ?: e.javaClass.simpleName
 
     private fun scanForHachimiMarker(stream: BufferedInputStream): String? {
-        val target = "HACHIMI_VERSION:".toByteArray(Charsets.US_ASCII)
-        var matchIndex = 0
+        val newTarget = "HACHIMI_VERSION:".toByteArray(Charsets.US_ASCII)
+        val legacyTarget = "hachimiv".toByteArray(Charsets.US_ASCII)
+        var newIdx = 0
+        var legacyIdx = 0
+        var legacyVersion: String? = null
         var b: Int = -1
 
         // Scan up to 16MB for the marker to prevent unbounded processing
@@ -214,25 +213,47 @@ object TracenLibrarySafeguard {
 
         while (scanned < maxScan && stream.read().also { b = it } != -1) {
             scanned++
-            if (b.toByte() == target[matchIndex]) {
-                matchIndex++
-                if (matchIndex == target.size) {
-                    val sb = StringBuilder()
-                    for (i in 0 until 64) {
-                        val next = stream.read()
-                        if (next == -1 || next == 0 || next < 32 || next > 126) break
-                        sb.append(next.toChar())
-                    }
-                    val regex = Regex("^(v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-fA-F0-9]{7,12})?(?:-dirty)?)")
-                    val match = regex.find(sb.toString())
+            val byte = b.toByte()
+
+            if (byte == newTarget[newIdx]) {
+                newIdx++
+                if (newIdx == newTarget.size) {
+                    val tail = readAsciiTail(stream, 64)
+                    scanned += tail.length
+                    val match = Regex("^(v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-fA-F0-9]{7,12})?(?:-dirty)?)").find(tail)
                     if (match != null) return match.groupValues[1]
-                    matchIndex = 0
+                    newIdx = 0
                 }
             } else {
-                matchIndex = if (b.toByte() == target[0]) 1 else 0
+                newIdx = if (byte == newTarget[0]) 1 else 0
+            }
+
+            if (legacyVersion == null) {
+                if (byte == legacyTarget[legacyIdx]) {
+                    legacyIdx++
+                    if (legacyIdx == legacyTarget.size) {
+                        val tail = readAsciiTail(stream, 64)
+                        scanned += tail.length
+                        val match = Regex("^([0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-fA-F0-9]{7,12})?(?:-dirty)?)").find(tail)
+                        if (match != null) legacyVersion = "v" + match.groupValues[1]
+                        legacyIdx = 0
+                    }
+                } else {
+                    legacyIdx = if (byte == legacyTarget[0]) 1 else 0
+                }
             }
         }
-        return null
+        return legacyVersion
+    }
+
+    private fun readAsciiTail(stream: BufferedInputStream, maxLen: Int): String {
+        val sb = StringBuilder()
+        for (i in 0 until maxLen) {
+            val next = stream.read()
+            if (next == -1 || next == 0 || next < 32 || next > 126) break
+            sb.append(next.toChar())
+        }
+        return sb.toString()
     }
 
     /**
