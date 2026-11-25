@@ -89,12 +89,11 @@ class ModSource(
     fun target(context: Context): File {
         val modDir = libraries.modDirectory(context)
         val file = modDir.resolve(libraryName)
-        // Migration: If the mod library exists in the profile directory (e.g. legacy libs_glb) but not in shared modDirectory, copy it over
+        // Migration: If the mod library exists in the profile directory (e.g. legacy libs_glb) but not in shared modDirectory, move it over
         if (!file.isFile) {
             val legacy = libraries.directory(context).resolve(libraryName)
             if (legacy.isFile && legacy.length() > 0L) {
-                modDir.mkdirs()
-                runCatching { legacy.copyTo(file, overwrite = true) }
+                moveFile(legacy, file)
             }
         }
         return file

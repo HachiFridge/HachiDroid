@@ -46,7 +46,9 @@ class LibrarySet(
     /** Directory where the shared mod runtime binary is kept. Defaults to [directoryName]. */
     val modDirectoryName: String = directoryName,
     /** Alternative filenames that should be recognized and imported as [modLibrary]. */
-    val modLibraryAliases: List<String> = emptyList()
+    val modLibraryAliases: List<String> = emptyList(),
+    /** Legacy profile directories that may still hold a copy of [modLibrary] from older versions. */
+    val legacyModDirectories: List<String> = emptyList()
 ) {
 
     /** Whether [name] refers to the mod runtime binary or one of its known aliases. */
@@ -213,8 +215,11 @@ class LibrarySet(
         val file = targetDir.resolve(canonical)
         val deleted = file.delete()
         if (isMod) {
-            // Also clean up any legacy copy in regional directory
+            // Also clean up any legacy copy in this profile's directory and sibling profile directories
             directory(context).resolve(canonical).delete()
+            legacyModDirectories.forEach { legacyDir ->
+                context.filesDir.resolve(legacyDir).resolve(canonical).delete()
+            }
         }
         deleted || !file.exists()
     }.getOrDefault(false)
@@ -235,8 +240,7 @@ class LibrarySet(
                     else {
                         val secondary = dir.resolve(name)
                         if (secondary.isFile && secondary.length() > 0L) {
-                            modDir.mkdirs()
-                            runCatching { secondary.copyTo(primary, overwrite = true) }
+                            moveFile(secondary, primary)
                             primary
                         } else secondary
                     }
@@ -482,6 +486,20 @@ val ASTRAEA_MOD_ALIASES = listOf(
     "libdaringtact-arm64-v8a.so"
 )
 
+/** Moves [src] to [dest], falling back to copy + delete when across filesystems. */
+internal fun moveFile(src: File, dest: File) {
+    dest.parentFile?.mkdirs()
+    if (!src.renameTo(dest)) {
+        runCatching {
+            src.copyTo(dest, overwrite = true)
+            src.delete()
+        }
+    }
+}
+
+/** Legacy regional library folders that may still contain a copy of the shared mod runtime. */
+private val TRACEN_LEGACY_MOD_DIRS = listOf("libs_glb", "libs_jp", "libs_tw", "libs_kr")
+
 /**
  * Tracen's native libraries: the Hachimi runtime, which is downloaded rather than unpacked, and a
  * restored `libil2cpp.so` for a packer-protected build only.
@@ -502,7 +520,8 @@ val TracenGlbLibraries = LibrarySet(
     modLibrary = "libmain-arm64-v8a.so",
     protectedGameAssets = listOf("global-metadata.dat"),
     modDirectoryName = "libs",
-    modLibraryAliases = TRACEN_MOD_ALIASES
+    modLibraryAliases = TRACEN_MOD_ALIASES,
+    legacyModDirectories = TRACEN_LEGACY_MOD_DIRS
 )
 
 /**
@@ -514,7 +533,8 @@ val TracenJpLibraries = LibrarySet(
     protectedGameLibraries = emptyList(),
     modLibrary = "libmain-arm64-v8a.so",
     modDirectoryName = "libs",
-    modLibraryAliases = TRACEN_MOD_ALIASES
+    modLibraryAliases = TRACEN_MOD_ALIASES,
+    legacyModDirectories = TRACEN_LEGACY_MOD_DIRS
 )
 
 /**
@@ -526,7 +546,8 @@ val TracenTwLibraries = LibrarySet(
     protectedGameLibraries = emptyList(),
     modLibrary = "libmain-arm64-v8a.so",
     modDirectoryName = "libs",
-    modLibraryAliases = TRACEN_MOD_ALIASES
+    modLibraryAliases = TRACEN_MOD_ALIASES,
+    legacyModDirectories = TRACEN_LEGACY_MOD_DIRS
 )
 
 /**
@@ -538,7 +559,8 @@ val TracenKrLibraries = LibrarySet(
     protectedGameLibraries = emptyList(),
     modLibrary = "libmain-arm64-v8a.so",
     modDirectoryName = "libs",
-    modLibraryAliases = TRACEN_MOD_ALIASES
+    modLibraryAliases = TRACEN_MOD_ALIASES,
+    legacyModDirectories = TRACEN_LEGACY_MOD_DIRS
 )
 
 /** Default / legacy Tracen native libraries set for backward compatibility. */
