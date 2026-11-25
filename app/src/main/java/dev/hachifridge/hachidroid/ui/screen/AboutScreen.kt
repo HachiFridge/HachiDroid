@@ -97,27 +97,6 @@ fun AboutScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
             ) {
-                SectionHeader(stringResource(R.string.about_section_details))
-                SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 2.dp)) {
-                    AboutInfoRow(
-                        label = stringResource(R.string.about_version_label),
-                        value = BuildConfig.VERSION_NAME
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    AboutInfoRow(
-                        label = stringResource(R.string.about_build_label),
-                        value = BuildConfig.VERSION_CODE.toString()
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    AboutInfoRow(
-                        label = stringResource(R.string.about_package_label),
-                        value = context.packageName,
-                        monospaced = true
-                    )
-                }
-
-                Spacer(Modifier.height(24.dp))
-
                 SectionHeader(stringResource(R.string.about_section_resources))
                 SectionCard(contentPadding = PaddingValues(vertical = 2.dp)) {
                     AboutActionRow(
