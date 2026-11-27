@@ -234,7 +234,7 @@ class HomeViewModel : ViewModel() {
      * The version is what makes a restored image and its metadata checkable: they only match the
      * build they were unpacked from, so it is recorded beside them and compared here.
      */
-    private data class PickShape(val packed: Boolean, val stamp: String?)
+    private data class PickShape(val packed: Boolean, val stamp: String?, val packageName: String? = null)
 
     /**
      * Settles the build from the picks themselves.
@@ -249,7 +249,9 @@ class HomeViewModel : ViewModel() {
             return PickShape(packed = false, stamp = null)
         }
         val info = withContext(Dispatchers.IO) { ShellDetection.inspect(context, uris) }
-        return PickShape(profile.shellProtected || info.protected, info.versionStamp)
+        val detectedProfile = info.packageName?.let { ClientProfile.fromPackageName(it) }
+        val baseProtected = detectedProfile?.shellProtected ?: profile.shellProtected
+        return PickShape(baseProtected || info.protected, info.versionStamp, info.packageName)
     }
 
     /**
@@ -474,6 +476,21 @@ class HomeViewModel : ViewModel() {
         splitsJob = viewModelScope.launch {
             val shape = shapeOfPicks(context, uris)
             if (patchSplits != uris) return@launch
+            val detected = shape.packageName?.let { ClientProfile.fromPackageName(it) }
+            if (detected != null && detected != profile) {
+                profile = detected
+                installedProfiles = ClientProfile.getInstalledProfiles(context.packageManager, detected.client)
+                GameChecker.applyProfile(detected, context.packageManager)
+                _packageInfo.value = GameChecker.getPackageInfo(context.packageManager)
+                syncTargetState()
+                context.dataStore.edit {
+                    it[PrefKey.PROFILE] = detected.id
+                    it[PrefKey.CLIENT] = detected.client.prefValue
+                    it[PrefKey.TARGET_PACKAGE] = detected.defaultPackageName
+                }
+                _plugins.value = withContext(Dispatchers.IO) { detected.plugins.listPlugins(context) }
+                readModState(context)
+            }
             patchStamp = shape.stamp
             patchProtected = shape.packed
             refreshLibraries(context)
